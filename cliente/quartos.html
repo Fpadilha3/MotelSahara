@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quartos e suítes | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="client-page">
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">ÁREA EXCLUSIVA</span></span></a>
+        <div class="sidebar-section-title">MINHA CONTA</div>
+        <nav class="sidebar-nav" aria-label="Menu do cliente">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Início</a>
+            <a class="nav-link active" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="consumo.html"><span>◇</span> Consumo</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar" data-client-initial>U</div><div><strong data-client-name>Minha conta</strong><span>Cliente Sahara</span></div></div><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar"><div><span class="section-kicker">CONFORTO E EXCLUSIVIDADE</span><h1 class="page-title">Quartos e suítes</h1></div><button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button></header>
+
+        <section class="welcome-banner">
+            <div><span class="eyebrow">DESCUBRA O SAHARA</span><h2>Encontre seu espaço.</h2><p>Consulte as acomodações disponibilizadas pelo estabelecimento, suas características e os valores cadastrados.</p></div>
+            <span class="welcome-decoration" aria-hidden="true">✦</span>
+        </section>
+
+        <section class="dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">CATÁLOGO</span><h2>Acomodações disponíveis</h2></div></div>
+
+            <form id="clientRoomFilter" class="filter-bar">
+                <div class="form-group"><label for="roomQuery">Buscar acomodação</label><input class="form-control" type="search" id="roomQuery" name="busca" placeholder="Digite o nome ou a identificação"></div>
+                <div class="form-group"><label for="roomCategory">Categoria</label><select class="form-control" id="roomCategory" name="categoria"><option value="">Todas as categorias</option><option value="standard">Standard</option><option value="luxo">Luxo</option><option value="premium">Premium</option><option value="presidencial">Presidencial</option></select></div>
+                <button class="btn btn-secondary" type="submit">Buscar</button>
+            </form>
+
+            <div id="clientRoomsGrid" class="room-catalog-grid">
+                <div class="empty-state-card">
+                    <span class="empty-state-symbol" aria-hidden="true">✧</span>
+                    <h3>As acomodações aparecerão aqui</h3>
+                    <p>O catálogo será preenchido com os quartos cadastrados pelo administrador. Ainda não há acomodações carregadas para exibição.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">INFORMAÇÕES</span><h2>Sobre os valores</h2></div></div>
+            <p class="muted-text">Os preços, a duração dos períodos, as taxas e a disponibilidade serão apresentados conforme os dados registrados pelo estabelecimento. Uma consulta ao catálogo não representa, por si só, uma reserva confirmada.</p>
+        </section>
+
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Seu espaço exclusivo</span></footer>
+    </main>
+</div>
+</body>
+</html>

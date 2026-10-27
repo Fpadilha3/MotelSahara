@@ -1,0 +1,5 @@
+Options -Indexes
+
+<FilesMatch "^(config\.php|conexao\.php|resposta\.php|proteger\.php|criar_admin\.php)$">
+    Require all denied
+</FilesMatch>

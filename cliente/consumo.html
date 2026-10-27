@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu consumo | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="client-page">
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">ÁREA EXCLUSIVA</span></span></a>
+        <div class="sidebar-section-title">MINHA CONTA</div>
+        <nav class="sidebar-nav" aria-label="Menu do cliente">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Início</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link active" href="consumo.html"><span>◇</span> Consumo</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="sidebar-profile"><div class="avatar" data-client-initial>U</div><div><strong data-client-name>Minha conta</strong><span>Cliente Sahara</span></div></div>
+            <a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div><span class="section-kicker">CATÁLOGO E HISTÓRICO</span><h1 class="page-title">Meu consumo</h1></div>
+            <button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button>
+        </header>
+
+        <section class="welcome-banner">
+            <div>
+                <span class="eyebrow">DETALHES DA SUA EXPERIÊNCIA</span>
+                <h2>Consulte o catálogo.</h2>
+                <p>Veja os produtos disponibilizados pelo estabelecimento e acompanhe os consumos registrados na sua conta.</p>
+            </div>
+            <span class="welcome-decoration" aria-hidden="true">✦</span>
+        </section>
+
+        <section class="dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">PRODUTOS</span><h2>Catálogo do frigobar</h2></div>
+            </div>
+
+            <form id="clientProductFilter" class="filter-bar">
+                <div class="form-group">
+                    <label for="productSearch">Buscar produto</label>
+                    <input class="form-control" id="productSearch" name="busca" type="search" placeholder="Digite o nome do produto">
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Categoria</label>
+                    <select class="form-control" id="productCategory" name="categoria">
+                        <option value="">Todas as categorias</option>
+                        <option value="bebida">Bebidas</option>
+                        <option value="snack">Snacks</option>
+                        <option value="doce">Doces</option>
+                        <option value="higiene">Higiene</option>
+                        <option value="outro">Outros</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-secondary">Buscar</button>
+            </form>
+
+            <div id="clientProductsGrid" class="product-catalog-grid">
+                <div class="empty-state-card">
+                    <span class="empty-state-symbol" aria-hidden="true">◇</span>
+                    <h3>Nenhum produto carregado</h3>
+                    <p>Os produtos e os preços aparecerão aqui depois que o administrador cadastrá-los e o catálogo for conectado ao banco de dados.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">SEU HISTÓRICO</span><h2>Itens registrados</h2></div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Data</th>
+                            <th>Quantidade</th>
+                            <th>Valor unitário</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientConsumptionTable">
+                        <tr>
+                            <td colspan="5" class="empty-state">Nenhum item de consumo carregado para sua conta.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="total-summary">
+                <span>Total de consumo exibido</span>
+                <strong id="clientConsumptionTotal">—</strong>
+            </div>
+        </section>
+
+        <div id="consumptionMessage" class="form-message" role="status" hidden></div>
+
+        <footer class="app-footer">
+            <span>© <span data-current-year>2026</span> Motel Sahara</span>
+            <span>Seu espaço exclusivo</span>
+        </footer>
+    </main>
+</div>
+</body>
+</html>

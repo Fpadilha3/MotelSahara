@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frigobar | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="admin-page">
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">PAINEL ADMINISTRATIVO</span></span></a>
+        <div class="sidebar-section-title">MENU PRINCIPAL</div>
+        <nav class="sidebar-nav" aria-label="Menu administrativo">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link active" href="frigobar.html"><span>◇</span> Frigobar</a>
+            <a class="nav-link" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a></div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar"><div><span class="section-kicker">CATÁLOGO E ESTOQUE</span><h1 class="page-title">Frigobar</h1></div><button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button></header>
+        <div class="page-intro"><p>Cadastre os produtos comercializados, seus valores, categorias e quantidades disponíveis.</p></div>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">NOVO PRODUTO</span><h2>Cadastrar item</h2></div></div>
+
+            <form id="productForm" class="data-form" action="../api/frigobar.php" method="POST">
+                <input type="hidden" name="acao" value="criar">
+                <div class="form-grid">
+                    <div class="form-group"><label for="produto_nome">Nome do produto *</label><input class="form-control" id="produto_nome" name="nome" maxlength="150" required placeholder="Nome do produto"></div>
+                    <div class="form-group"><label for="produto_categoria">Categoria *</label><select class="form-control" id="produto_categoria" name="categoria" required><option value="">Selecione</option><option value="bebida">Bebida</option><option value="snack">Snack</option><option value="doce">Doce</option><option value="higiene">Higiene</option><option value="outro">Outro</option></select></div>
+                    <div class="form-group"><label for="produto_preco">Preço de venda (R$) *</label><input class="form-control" id="produto_preco" name="preco" type="number" min="0" step="0.01" required placeholder="0,00"></div>
+                    <div class="form-group"><label for="produto_estoque">Quantidade em estoque *</label><input class="form-control" id="produto_estoque" name="estoque" type="number" min="0" step="1" required value="0"></div>
+                    <div class="form-group"><label for="produto_taxa">Taxa adicional (%)</label><input class="form-control" id="produto_taxa" name="percentual_taxa" type="number" min="0" max="100" step="0.01" value="0"></div>
+                    <div class="form-group"><label for="produto_status">Situação *</label><select class="form-control" id="produto_status" name="ativo" required><option value="1">Ativo</option><option value="0">Inativo</option></select></div>
+                    <div class="form-group form-grid-full"><label for="produto_imagem">URL da imagem</label><input class="form-control" id="produto_imagem" name="imagem_url" type="url" maxlength="500" placeholder="https://..."></div>
+                    <div class="form-group form-grid-full"><label for="produto_descricao">Descrição</label><textarea class="form-control" id="produto_descricao" name="descricao" rows="3" maxlength="2000" placeholder="Informações adicionais do produto."></textarea></div>
+                </div>
+                <div id="productMessage" class="form-message" role="status" hidden></div>
+                <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Salvar produto</button></div>
+            </form>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">CONTROLE DE PRODUTOS</span><h2>Estoque cadastrado</h2></div></div>
+            <div class="filter-bar">
+                <div class="form-group"><label for="productSearch">Buscar produto</label><input class="form-control" id="productSearch" type="search" placeholder="Digite o nome do produto"></div>
+                <div class="form-group"><label for="productCategoryFilter">Categoria</label><select class="form-control" id="productCategoryFilter"><option value="">Todas</option><option value="bebida">Bebidas</option><option value="snack">Snacks</option><option value="doce">Doces</option><option value="higiene">Higiene</option><option value="outro">Outros</option></select></div>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <tbody id="productsTable"><tr><td colspan="6" class="empty-state">Nenhum produto carregado. Os produtos serão exibidos após a integração com o banco.</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Gestão interna</span></footer>
+    </main>
+</div>
+</body>
+</html>

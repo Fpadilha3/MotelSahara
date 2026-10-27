@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus pagamentos | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="client-page">
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">ÁREA EXCLUSIVA</span></span></a>
+        <div class="sidebar-section-title">MINHA CONTA</div>
+        <nav class="sidebar-nav" aria-label="Menu do cliente">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Início</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="consumo.html"><span>◇</span> Consumo</a>
+            <a class="nav-link active" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="sidebar-profile"><div class="avatar" data-client-initial>U</div><div><strong data-client-name>Minha conta</strong><span>Cliente Sahara</span></div></div>
+            <a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div><span class="section-kicker">INFORMAÇÕES FINANCEIRAS</span><h1 class="page-title">Meus pagamentos</h1></div>
+            <button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button>
+        </header>
+
+        <section class="welcome-banner">
+            <div>
+                <span class="eyebrow">TRANSPARÊNCIA E CONTROLE</span>
+                <h2>Suas informações financeiras.</h2>
+                <p>Consulte os pagamentos registrados, seus valores e a situação de cada lançamento associado à sua conta.</p>
+            </div>
+            <span class="welcome-decoration" aria-hidden="true">✦</span>
+        </section>
+
+        <section class="stats-grid dashboard-section">
+            <article class="stat-card">
+                <span class="stat-label">Total aprovado</span>
+                <span class="stat-value" data-client-payment="aprovado">—</span>
+                <span class="stat-description">Pagamentos confirmados</span>
+            </article>
+            <article class="stat-card">
+                <span class="stat-label">Em aberto</span>
+                <span class="stat-value" data-client-payment="pendente">—</span>
+                <span class="stat-description">Valores pendentes de confirmação</span>
+            </article>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">HISTÓRICO</span><h2>Seus pagamentos</h2></div>
+            </div>
+
+            <form id="clientPaymentFilter" class="filter-bar">
+                <div class="form-group">
+                    <label for="paymentStatus">Situação</label>
+                    <select class="form-control" id="paymentStatus" name="status">
+                        <option value="">Todas</option>
+                        <option value="pendente">Pendente</option>
+                        <option value="aprovado">Aprovado</option>
+                        <option value="recusado">Recusado</option>
+                        <option value="estornado">Estornado</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="paymentStart">A partir de</label>
+                    <input class="form-control" id="paymentStart" name="data_inicio" type="date">
+                </div>
+                <div class="form-group">
+                    <label for="paymentEnd">Até</label>
+                    <input class="form-control" id="paymentEnd" name="data_fim" type="date">
+                </div>
+                <button type="submit" class="btn btn-secondary">Filtrar</button>
+            </form>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Referência</th>
+                            <th>Data</th>
+                            <th>Método</th>
+                            <th>Valor</th>
+                            <th>Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientPaymentsTable">
+                        <tr>
+                            <td colspan="5" class="empty-state">Nenhum pagamento carregado para sua conta.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">PRECISA DE AJUDA?</span><h2>Entenda as situações</h2></div>
+            </div>
+            <div class="quick-actions-grid">
+                <article class="quick-action-card">
+                    <span class="quick-action-icon">◷</span>
+                    <h3>Pendente</h3>
+                    <p>O pagamento ainda aguarda confirmação.</p>
+                </article>
+                <article class="quick-action-card">
+                    <span class="quick-action-icon">✓</span>
+                    <h3>Aprovado</h3>
+                    <p>O pagamento foi confirmado pelo sistema.</p>
+                </article>
+                <article class="quick-action-card">
+                    <span class="quick-action-icon">↺</span>
+                    <h3>Estornado ou cancelado</h3>
+                    <p>Consulte o registro para verificar a situação e as observações disponíveis.</p>
+                </article>
+            </div>
+        </section>
+
+        <footer class="app-footer">
+            <span>© <span data-current-year>2026</span> Motel Sahara</span>
+            <span>Seus dados pessoais</span>
+        </footer>
+    </main>
+</div>
+</body>
+</html>

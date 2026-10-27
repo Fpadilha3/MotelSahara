@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadias | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="admin-page">
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">PAINEL ADMINISTRATIVO</span></span></a>
+        <div class="sidebar-section-title">MENU PRINCIPAL</div>
+        <nav class="sidebar-nav" aria-label="Menu administrativo">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
+            <a class="nav-link active" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a></div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar"><div><span class="section-kicker">OPERAÇÃO DO ESTABELECIMENTO</span><h1 class="page-title">Estadias</h1></div><button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button></header>
+        <div class="page-intro"><p>Acompanhe as estadias registradas, seus períodos, quartos associados e situação atual.</p></div>
+
+        <section class="stats-grid dashboard-section">
+            <article class="stat-card"><span class="stat-label">Reservadas</span><span class="stat-value" data-stay-stat="reservada">—</span><span class="stat-description">Aguardando entrada</span></article>
+            <article class="stat-card"><span class="stat-label">Em andamento</span><span class="stat-value" data-stay-stat="em_andamento">—</span><span class="stat-description">Estadias ativas</span></article>
+            <article class="stat-card"><span class="stat-label">Finalizadas</span><span class="stat-value" data-stay-stat="finalizada">—</span><span class="stat-description">Concluídas</span></article>
+            <article class="stat-card"><span class="stat-label">Canceladas</span><span class="stat-value" data-stay-stat="cancelada">—</span><span class="stat-description">Registros cancelados</span></article>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">PESQUISA E CONSULTA</span><h2>Registros de estadias</h2></div></div>
+
+            <form id="stayFilterForm" class="filter-bar">
+                <div class="form-group"><label for="staySearch">Código ou cliente</label><input class="form-control" type="search" id="staySearch" name="busca" placeholder="Pesquisar registro"></div>
+                <div class="form-group"><label for="stayStatus">Situação</label><select class="form-control" id="stayStatus" name="status"><option value="">Todas</option><option value="reservada">Reservada</option><option value="em_andamento">Em andamento</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option></select></div>
+                <div class="form-group"><label for="stayStart">Entrada a partir de</label><input class="form-control" type="date" id="stayStart" name="data_inicio"></div>
+                <div class="form-group"><label for="stayEnd">Entrada até</label><input class="form-control" type="date" id="stayEnd" name="data_fim"></div>
+                <button class="btn btn-secondary" type="submit">Filtrar</button>
+            </form>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <tbody id="staysTable"><tr><td colspan="7" class="empty-state">Nenhuma estadia carregada. Os registros aparecerão aqui após a integração com o banco.</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">REGISTRO OPERACIONAL</span><h2>Iniciar uma estadia</h2></div></div>
+            <p class="muted-text">A abertura de uma estadia deverá selecionar um cliente e um quarto válido. O servidor verificará a disponibilidade antes de gravar o registro.</p>
+
+            <form id="stayForm" class="data-form" action="../api/estadias.php" method="POST">
+                <input type="hidden" name="acao" value="criar">
+                <div class="form-grid">
+                    <div class="form-group"><label for="cliente_id">ID do cliente *</label><input class="form-control" type="number" id="cliente_id" name="cliente_id" min="1" required placeholder="ID cadastrado"></div>
+                    <div class="form-group"><label for="quarto_id">ID do quarto *</label><input class="form-control" type="number" id="quarto_id" name="quarto_id" min="1" required placeholder="ID cadastrado"></div>
+                    <div class="form-group"><label for="entrada">Data e hora de entrada *</label><input class="form-control" type="datetime-local" id="entrada" name="data_entrada" required></div>
+                    <div class="form-group"><label for="saida">Data e hora de saída prevista *</label><input class="form-control" type="datetime-local" id="saida" name="data_saida" required></div>
+                    <div class="form-group"><label for="pessoas">Número de pessoas *</label><input class="form-control" type="number" id="pessoas" name="quantidade_pessoas" min="1" max="50" value="2" required></div>
+                    <div class="form-group form-grid-full"><label for="observacoes">Observações</label><textarea class="form-control" id="observacoes" name="observacoes" rows="3" maxlength="2000" placeholder="Informações pertinentes à estadia."></textarea></div>
+                </div>
+                <div id="stayMessage" class="form-message" role="status" hidden></div>
+                <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Registrar estadia</button></div>
+            </form>
+        </section>
+
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Gestão interna</span></footer>
+    </main>
+</div>
+</body>
+</html>

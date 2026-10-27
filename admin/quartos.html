@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quartos e Suítes | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="admin-page">
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light">
+            <span class="brand-symbol">✦</span>
+            <span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">PAINEL ADMINISTRATIVO</span></span>
+        </a>
+        <div class="sidebar-section-title">MENU PRINCIPAL</div>
+        <nav class="sidebar-nav" aria-label="Menu administrativo">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
+            <a class="nav-link active" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
+            <a class="nav-link" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div>
+            <a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div><span class="section-kicker">CADASTRO E DISPONIBILIDADE</span><h1 class="page-title">Quartos e suítes</h1></div>
+            <button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button>
+        </header>
+
+        <div class="page-intro">
+            <p>Cadastre as acomodações e defina os valores e as condições de utilização do estabelecimento.</p>
+        </div>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">NOVA ACOMODAÇÃO</span><h2>Cadastrar quarto</h2></div>
+            </div>
+
+            <form id="roomForm" class="data-form" action="../api/quartos.php" method="POST">
+                <input type="hidden" name="acao" value="criar">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="numero">Número ou identificação *</label>
+                        <input class="form-control" id="numero" name="numero" type="text" maxlength="30" placeholder="Ex.: 01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nome">Nome da acomodação *</label>
+                        <input class="form-control" id="nome" name="nome" type="text" maxlength="100" placeholder="Nome do quarto ou suíte" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="categoria">Categoria *</label>
+                        <select class="form-control" id="categoria" name="categoria" required>
+                            <option value="">Selecione uma categoria</option>
+                            <option value="standard">Standard</option>
+                            <option value="luxo">Luxo</option>
+                            <option value="premium">Premium</option>
+                            <option value="presidencial">Presidencial</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="capacidade">Capacidade de pessoas *</label>
+                        <input class="form-control" id="capacidade" name="capacidade" type="number" min="1" max="50" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preco_periodo">Preço do período (R$) *</label>
+                        <input class="form-control" id="preco_periodo" name="preco_periodo" type="number" min="0" step="0.01" placeholder="0,00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="duracao">Duração do período (minutos) *</label>
+                        <input class="form-control" id="duracao" name="duracao_periodo_minutos" type="number" min="1" value="180" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hora_extra">Preço da hora extra (R$)</label>
+                        <input class="form-control" id="hora_extra" name="preco_hora_extra" type="number" min="0" step="0.01" value="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taxa">Taxa de serviço (%)</label>
+                        <input class="form-control" id="taxa" name="percentual_taxa_servico" type="number" min="0" max="100" step="0.01" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">Situação inicial *</label>
+                        <select class="form-control" id="status" name="status" required>
+                            <option value="disponivel">Disponível</option>
+                            <option value="manutencao">Em manutenção</option>
+                            <option value="inativo">Inativo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imagem_url">URL da imagem</label>
+                        <input class="form-control" id="imagem_url" name="imagem_url" type="url" maxlength="500" placeholder="https://...">
+                    </div>
+
+                    <div class="form-group form-grid-full">
+                        <label for="descricao">Descrição da acomodação</label>
+                        <textarea class="form-control" id="descricao" name="descricao" rows="4" maxlength="3000" placeholder="Descreva os diferenciais, comodidades e características da acomodação."></textarea>
+                    </div>
+                </div>
+
+                <div id="roomMessage" class="form-message" role="status" hidden></div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn btn-secondary">Limpar formulário</button>
+                    <button type="submit" class="btn btn-primary">Salvar acomodação</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">CADASTRO EXISTENTE</span><h2>Quartos cadastrados</h2></div>
+                <span class="muted-text">Dados carregados do sistema</span>
+            </div>
+
+            <div class="filter-bar">
+                <div class="form-group">
+                    <label for="roomSearch">Buscar acomodação</label>
+                    <input class="form-control" id="roomSearch" type="search" placeholder="Número ou nome">
+                </div>
+                <div class="form-group">
+                    <label for="roomStatusFilter">Filtrar situação</label>
+                    <select class="form-control" id="roomStatusFilter">
+                        <option value="">Todas as situações</option>
+                        <option value="disponivel">Disponível</option>
+                        <option value="ocupado">Ocupado</option>
+                        <option value="manutencao">Em manutenção</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead><tr><th>Número</th><th>Acomodação</th><th>Categoria</th><th>Preço</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <tbody id="roomsTable">
+                        <tr><td colspan="6" class="empty-state">Nenhum quarto carregado. Cadastre uma acomodação ou conecte a listagem ao banco.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Gestão interna</span></footer>
+    </main>
+</div>
+</body>
+</html>

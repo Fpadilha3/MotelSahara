@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha área | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/app.js" defer></script>
+</head>
+<body class="client-page">
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light">
+            <span class="brand-symbol">✦</span>
+            <span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">ÁREA EXCLUSIVA</span></span>
+        </a>
+        <div class="sidebar-section-title">MINHA CONTA</div>
+        <nav class="sidebar-nav" aria-label="Menu do cliente">
+            <a class="nav-link active" href="dashboard.html"><span>⌂</span> Início</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="consumo.html"><span>◇</span> Consumo</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="sidebar-profile"><div class="avatar" data-client-initial>U</div><div><strong data-client-name>Minha conta</strong><span>Cliente Sahara</span></div></div>
+            <a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div><span class="section-kicker">SUA EXPERIÊNCIA SAHARA</span><h1 class="page-title">Minha área</h1></div>
+            <button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button>
+        </header>
+
+        <section class="welcome-banner">
+            <div>
+                <span class="eyebrow">SEJA BEM-VINDO(A)</span>
+                <h2>Seu espaço, do seu jeito.</h2>
+                <p>Consulte as acomodações cadastradas, acompanhe seus consumos e confira seus pagamentos.</p>
+                <a href="quartos.html" class="btn btn-primary">Explorar acomodações <span aria-hidden="true">→</span></a>
+            </div>
+            <span class="welcome-decoration" aria-hidden="true">✦</span>
+        </section>
+
+        <section class="dashboard-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">SUA CONTA</span><h2>Resumo pessoal</h2></div>
+            </div>
+            <div class="stats-grid">
+                <article class="stat-card"><span class="stat-label">Estadia atual</span><span class="stat-value" data-client-stat="estadia">—</span><span class="stat-description">Situação da sua estadia</span></article>
+                <article class="stat-card"><span class="stat-label">Consumos registrados</span><span class="stat-value" data-client-stat="consumos">—</span><span class="stat-description">Itens associados à sua estadia</span></article>
+                <article class="stat-card"><span class="stat-label">Pagamentos pendentes</span><span class="stat-value" data-client-stat="pendentes">—</span><span class="stat-description">Valores aguardando confirmação</span></article>
+            </div>
+        </section>
+
+        <section class="dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">NAVEGAÇÃO</span><h2>Como podemos ajudar?</h2></div></div>
+            <div class="quick-actions-grid">
+                <a href="quartos.html" class="quick-action-card"><span class="quick-action-icon">▦</span><h3>Conhecer os quartos</h3><p>Veja as acomodações e os preços definidos pelo estabelecimento.</p><span class="text-link">Consultar opções →</span></a>
+                <a href="consumo.html" class="quick-action-card"><span class="quick-action-icon">◇</span><h3>Meu consumo</h3><p>Confira os produtos e os itens registrados durante suas estadias.</p><span class="text-link">Consultar consumo →</span></a>
+                <a href="pagamentos.html" class="quick-action-card"><span class="quick-action-icon">＄</span><h3>Meus pagamentos</h3><p>Acompanhe os valores e a situação dos seus pagamentos.</p><span class="text-link">Consultar pagamentos →</span></a>
+            </div>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">SEU HISTÓRICO</span><h2>Últimas estadias</h2></div><a href="pagamentos.html" class="text-link">Consultar pagamentos →</a></div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead><tr><th>Código</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Situação</th></tr></thead>
+                    <tbody id="clientStaysTable"><tr><td colspan="5" class="empty-state">Não há informações para exibir. Suas estadias aparecerão aqui quando estiverem disponíveis.</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Seu espaço exclusivo</span></footer>
+    </main>
+</div>
+</body>
+</html>
