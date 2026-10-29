@@ -21,8 +21,8 @@
         rel="stylesheet"
     >
 
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="/script.js" defer></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="script.js" defer></script>
 </head>
 
 <body class="auth-page">
@@ -123,10 +123,11 @@
                 <form
                     id="loginForm"
                     class="auth-form"
-                    action="api/login.php"
+                    action="api/auth.php?acao=login"
                     method="POST"
                     autocomplete="on"
                 >
+                    <input type="hidden" name="tipo_esperado" value="cliente">
 
                     <div class="form-group">
                         <label for="email">E-mail</label>
@@ -229,9 +230,14 @@
                 </div>
 
 
-                <a href="cadrasto.html" class="btn btn-secondary btn-full">
+                <a href="cadastro.html" class="btn btn-secondary btn-full">
                     Criar minha conta
                 </a>
+
+                <div class="auth-bottom-link">
+                    Acesso da equipe?
+                    <a href="admin-login.html">Entrar como administrador</a>
+                </div>
 
 
                 <div class="auth-assistance">

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estadias | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/app.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="admin-page">
 <div class="app-layout">
@@ -17,10 +17,10 @@
             <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
             <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
             <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
-            <a class="nav-link active" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link active" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
         </nav>
-        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a></div>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
     </aside>
 
     <main class="main-content">
@@ -47,25 +47,25 @@
 
             <div class="table-responsive">
                 <table class="data-table">
-                    <thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Situação</th><th>Ações</th></tr></thead>
-                    <tbody id="staysTable"><tr><td colspan="7" class="empty-state">Nenhuma estadia carregada. Os registros aparecerão aqui após a integração com o banco.</td></tr></tbody>
+                    <thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Total previsto</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <tbody id="staysTable"><tr><td colspan="8" class="empty-state">Nenhuma estadia carregada. Os registros aparecerão aqui após a integração com o banco.</td></tr></tbody>
                 </table>
             </div>
         </section>
 
         <section class="panel dashboard-section">
-            <div class="section-heading"><div><span class="section-kicker">REGISTRO OPERACIONAL</span><h2>Iniciar uma estadia</h2></div></div>
-            <p class="muted-text">A abertura de uma estadia deverá selecionar um cliente e um quarto válido. O servidor verificará a disponibilidade antes de gravar o registro.</p>
+            <div class="section-heading"><div><span class="section-kicker">REGISTRO OPERACIONAL</span><h2>Registrar uma estadia</h2></div></div>
+            <p class="muted-text">Uma estadia registrada fica como reservada. No check-in, use o botão “Iniciar” na lista acima; isso libera o consumo do cliente. No check-out, use “Finalizar”.</p>
 
-            <form id="stayForm" class="data-form" action="../api/estadias.php" method="POST">
+            <form id="stayForm" class="data-form" action="../api/api.php?tabela=estadias" method="POST">
                 <input type="hidden" name="acao" value="criar">
                 <div class="form-grid">
                     <div class="form-group"><label for="cliente_id">ID do cliente *</label><input class="form-control" type="number" id="cliente_id" name="cliente_id" min="1" required placeholder="ID cadastrado"></div>
                     <div class="form-group"><label for="quarto_id">ID do quarto *</label><input class="form-control" type="number" id="quarto_id" name="quarto_id" min="1" required placeholder="ID cadastrado"></div>
-                    <div class="form-group"><label for="entrada">Data e hora de entrada *</label><input class="form-control" type="datetime-local" id="entrada" name="data_entrada" required></div>
-                    <div class="form-group"><label for="saida">Data e hora de saída prevista *</label><input class="form-control" type="datetime-local" id="saida" name="data_saida" required></div>
+                    <div class="form-group"><label for="entrada">Data e hora de entrada *</label><input class="form-control" type="datetime-local" id="entrada" name="entrada_prevista" required></div>
+                    <div class="form-group"><label for="saida">Data e hora de saída prevista *</label><input class="form-control" type="datetime-local" id="saida" name="saida_prevista" required></div>
                     <div class="form-group"><label for="pessoas">Número de pessoas *</label><input class="form-control" type="number" id="pessoas" name="quantidade_pessoas" min="1" max="50" value="2" required></div>
-                    <div class="form-group form-grid-full"><label for="observacoes">Observações</label><textarea class="form-control" id="observacoes" name="observacoes" rows="3" maxlength="2000" placeholder="Informações pertinentes à estadia."></textarea></div>
+                    <div class="form-group form-grid-full"><label for="observacoes">Observações</label><textarea class="form-control" id="observacoes" name="observacoes" rows="3" maxlength="500" placeholder="Informações pertinentes à estadia."></textarea></div>
                 </div>
                 <div id="stayMessage" class="form-message" role="status" hidden></div>
                 <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Registrar estadia</button></div>

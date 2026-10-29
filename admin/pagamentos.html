@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pagamentos | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/app.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="admin-page">
 <div class="app-layout">
@@ -17,10 +17,10 @@
             <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
             <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
             <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
-            <a class="nav-link" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link active" href="pagamentos.html"><span>＄</span> Pagamentos</a>
         </nav>
-        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a></div>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
     </aside>
 
     <main class="main-content">
@@ -54,19 +54,20 @@
 
         <section class="panel dashboard-section">
             <div class="section-heading"><div><span class="section-kicker">LANÇAMENTO</span><h2>Registrar pagamento</h2></div></div>
-            <form id="paymentForm" class="data-form" action="../api/pagamentos.php" method="POST">
+            <form id="paymentForm" class="data-form" action="../api/api.php?tabela=pagamentos" method="POST">
                 <input type="hidden" name="acao" value="criar">
                 <div class="form-grid">
-                    <div class="form-group"><label for="pagamento_estadia">ID da estadia *</label><input class="form-control" id="pagamento_estadia" name="estadia_id" type="number" min="1" required></div>
-                    <div class="form-group"><label for="pagamento_valor">Valor (R$) *</label><input class="form-control" id="pagamento_valor" name="valor" type="number" min="0.01" step="0.01" required placeholder="0,00"></div>
+                    <div class="form-group"><label for="pagamento_estadia">Estadia *</label><select class="form-control" id="pagamento_estadia" name="estadia_id" required><option value="">Selecione uma estadia</option></select></div>
+                    <div class="form-group"><label for="pagamento_valor">Valor recebido (R$) *</label><input class="form-control" id="pagamento_valor" name="valor" type="number" min="0.01" step="0.01" required placeholder="0,00"></div>
                     <div class="form-group"><label for="pagamento_metodo">Método de pagamento *</label><select class="form-control" id="pagamento_metodo" name="metodo" required><option value="">Selecione</option><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select></div>
                     <div class="form-group"><label for="pagamento_status">Situação *</label><select class="form-control" id="pagamento_status" name="status" required><option value="pendente">Pendente</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="estornado">Estornado</option><option value="cancelado">Cancelado</option></select></div>
-                    <div class="form-group form-grid-full"><label for="pagamento_observacoes">Observações</label><textarea class="form-control" id="pagamento_observacoes" name="observacoes" rows="3" maxlength="2000" placeholder="Referência ou observações do lançamento."></textarea></div>
+                    <div class="form-group form-grid-full"><label for="pagamento_observacoes">Observações</label><textarea class="form-control" id="pagamento_observacoes" name="observacoes" rows="3" maxlength="500" placeholder="Referência ou observações do lançamento."></textarea></div>
                 </div>
+                <div id="paymentStaySummary" class="room-booking-summary" aria-live="polite">Selecione uma estadia para consultar o total, os valores já pagos e o saldo em aberto.</div>
                 <div id="paymentMessage" class="form-message" role="status" hidden></div>
                 <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Registrar pagamento</button></div>
             </form>
-            <p class="field-hint">Importante: a situação “aprovado” deve ser atribuída somente após confirmação confiável do recebimento. Este formulário não processa pagamentos por conta própria.</p>
+            <p class="field-hint">Este painel não processa Pix ou cartão. Registre o pagamento depois que o recebimento for confirmado; ao marcar como “Aprovado”, ele aparecerá como pago no histórico e será abatido do saldo da estadia.</p>
         </section>
 
         <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Gestão interna</span></footer>

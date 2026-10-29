@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quartos e suítes | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="/script.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="client-page">
 <div class="app-layout">
@@ -49,9 +49,53 @@
             </div>
         </section>
 
+        <dialog id="roomBookingDialog" class="room-booking-dialog" aria-labelledby="roomBookingTitle">
+            <div class="room-booking-heading">
+                <div>
+                    <span class="section-kicker">DETALHES E AGENDAMENTO</span>
+                    <h2 id="roomBookingTitle">Agendar acomodação</h2>
+                </div>
+                <button type="button" class="btn btn-secondary room-booking-back" data-close-room-dialog><span aria-hidden="true">←</span> Voltar às suítes</button>
+            </div>
+            <div id="roomBookingDetails" class="room-booking-details"></div>
+            <form id="roomBookingForm" class="room-booking-form">
+                <input type="hidden" name="quarto_id">
+                <input type="hidden" name="entrada_prevista">
+                <input type="hidden" name="saida_prevista">
+                <div class="form-group">
+                    <label for="bookingDate">Data de entrada *</label>
+                    <input class="form-control" id="bookingDate" type="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookingTime">Horário de entrada *</label>
+                    <input class="form-control" id="bookingTime" type="time" step="60" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookingDuration">Duração da estadia (HH:MM) *</label>
+                    <input class="form-control" id="bookingDuration" type="time" min="00:01" max="23:59" step="60" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookingPeople">Quantidade de pessoas *</label>
+                    <input class="form-control" id="bookingPeople" name="quantidade_pessoas" type="number" min="1" value="2" required>
+                    <span id="bookingPeopleHint" class="field-hint"></span>
+                </div>
+                <div class="form-group">
+                    <label for="bookingNotes">Observações</label>
+                    <textarea class="form-control" id="bookingNotes" name="observacoes" rows="3" maxlength="500" placeholder="Alguma informação para a equipe?"></textarea>
+                </div>
+                <div class="room-booking-summary" aria-live="polite">
+                    <div class="room-booking-summary-row"><span>Saída prevista</span><strong id="bookingDeparture">—</strong></div>
+                    <div id="roomBookingQuote"></div>
+                </div>
+                <div id="roomBookingMessage" class="form-message" role="status" aria-live="polite" hidden></div>
+                <button class="btn btn-primary btn-full" type="submit">Solicitar agendamento</button>
+                <p class="field-hint">O pedido ficará aguardando confirmação da equipe. O preço é estimado e a disponibilidade será confirmada ao enviar.</p>
+            </form>
+        </dialog>
+
         <section class="panel dashboard-section">
             <div class="section-heading"><div><span class="section-kicker">INFORMAÇÕES</span><h2>Sobre os valores</h2></div></div>
-            <p class="muted-text">Os preços, a duração dos períodos, as taxas e a disponibilidade serão apresentados conforme os dados registrados pelo estabelecimento. Uma consulta ao catálogo não representa, por si só, uma reserva confirmada.</p>
+            <p class="muted-text">O preço é calculado proporcionalmente ao tempo escolhido, usando o valor e a duração do período-base. Pessoas acima da quantidade incluída podem ter adicional individual, respeitando o limite máximo da suíte. O total exibido é uma estimativa e a disponibilidade será confirmada pela equipe.</p>
         </section>
 
         <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Seu espaço exclusivo</span></footer>

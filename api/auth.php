@@ -5,11 +5,13 @@ require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/resposta.php';
 require_once __DIR__ . '/proteger.php';
 
-$pdo = conectarBanco();
+$pdo = null;
 $metodo = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $acao = strtolower((string) ($_GET['acao'] ?? ''));
 
 try {
+    $pdo = conectarBanco();
+
     if ($metodo === 'GET' && $acao === 'sessao') {
         $usuario = usuarioAtual();
 
@@ -27,11 +29,16 @@ try {
     if ($acao === 'login') {
         $email = strtolower(trim((string) ($dados['email'] ?? '')));
         $senha = (string) ($dados['senha'] ?? '');
+        $tipoEsperado = (string) ($dados['tipo_esperado'] ?? '');
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $senha === '') {
+        if (
+            !filter_var($email, FILTER_VALIDATE_EMAIL) ||
+            $senha === '' ||
+            !in_array($tipoEsperado, ['admin', 'cliente'], true)
+        ) {
             responderJson([
                 'sucesso' => false,
-                'mensagem' => 'Informe um e-mail válido e a senha.'
+                'mensagem' => 'Informe um e-mail, uma senha e selecione o tipo de acesso correto.'
             ], 422);
         }
 
@@ -47,12 +54,26 @@ try {
         if (
             !$usuario ||
             (int) $usuario['ativo'] !== 1 ||
+            $usuario['tipo'] !== $tipoEsperado ||
             !password_verify($senha, $usuario['senha_hash'])
         ) {
             responderJson([
                 'sucesso' => false,
                 'mensagem' => 'E-mail ou senha incorretos.'
             ], 401);
+        }
+
+        if ($tipoEsperado === 'cliente') {
+            $stmt = $pdo->prepare(
+                'SELECT id FROM clientes WHERE usuario_id = :usuario_id LIMIT 1'
+            );
+            $stmt->execute(['usuario_id' => $usuario['id']]);
+            if (!$stmt->fetchColumn()) {
+                responderJson([
+                    'sucesso' => false,
+                    'mensagem' => 'Esta conta não possui cadastro de cliente. Entre pelo acesso administrativo.'
+                ], 403);
+            }
         }
 
         session_regenerate_id(true);
@@ -69,8 +90,8 @@ try {
             'mensagem' => 'Login realizado.',
             'usuario' => $usuario,
             'redirecionar' => $usuario['tipo'] === 'admin'
-                ? '../admin/dashboard.html'
-                : '../cliente/dashboard.html'
+                ? 'admin/dashboard.html'
+                : 'cliente/dashboard.html'
         ]);
     }
 
@@ -81,11 +102,12 @@ try {
         $senha = (string) ($dados['senha'] ?? '');
         $cpf = preg_replace('/\D+/', '', (string) ($dados['cpf'] ?? ''));
         $nascimento = trim((string) ($dados['data_nascimento'] ?? ''));
+        $observacoes = trim((string) ($dados['observacoes'] ?? ''));
 
-        if (mb_strlen($nome) < 2 || mb_strlen($nome) > 120) {
+        if (mb_strlen($nome) < 3 || mb_strlen($nome) > 120) {
             responderJson([
                 'sucesso' => false,
-                'mensagem' => 'Informe um nome entre 2 e 120 caracteres.'
+                'mensagem' => 'Informe um nome entre 3 e 120 caracteres.'
             ], 422);
         }
 
@@ -103,10 +125,27 @@ try {
             ], 422);
         }
 
-        if ($telefone !== '' && strlen($telefone) > 25) {
+        if (
+            !isset($dados['confirmar_senha']) ||
+            !hash_equals($senha, (string) $dados['confirmar_senha'])
+        ) {
             responderJson([
                 'sucesso' => false,
-                'mensagem' => 'O telefone é muito longo.'
+                'mensagem' => 'A confirmação da senha não confere.'
+            ], 422);
+        }
+
+        if ((string) ($dados['aceite'] ?? '') !== '1') {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Confirme o uso dos dados para concluir o cadastro.'
+            ], 422);
+        }
+
+        if ($telefone === '' || strlen($telefone) > 20) {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Informe um telefone com até 20 caracteres.'
             ], 422);
         }
 
@@ -117,15 +156,27 @@ try {
             ], 422);
         }
 
-        if ($nascimento !== '') {
-            $data = DateTime::createFromFormat('!Y-m-d', $nascimento);
+        $dataNascimento = DateTime::createFromFormat('!Y-m-d', $nascimento);
+        $hoje = new DateTimeImmutable('today');
+        $limiteIdade = $hoje->modify('-18 years');
 
-            if (!$data || $data->format('Y-m-d') !== $nascimento) {
-                responderJson([
-                    'sucesso' => false,
-                    'mensagem' => 'Data de nascimento inválida.'
-                ], 422);
-            }
+        if (
+            !$dataNascimento ||
+            $dataNascimento->format('Y-m-d') !== $nascimento ||
+            $dataNascimento > $limiteIdade ||
+            $dataNascimento->format('Y-m-d') < '1900-01-01'
+        ) {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Informe uma data de nascimento válida. O cadastro é permitido apenas a partir de 18 anos.'
+            ], 422);
+        }
+
+        if (mb_strlen($observacoes) > 500) {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'As observações podem ter no máximo 500 caracteres.'
+            ], 422);
         }
 
         $pdo->beginTransaction();
@@ -147,14 +198,15 @@ try {
         $usuarioId = (int) $pdo->lastInsertId();
 
         $stmt = $pdo->prepare(
-            'INSERT INTO clientes (usuario_id, cpf, data_nascimento)
-             VALUES (:usuario_id, :cpf, :nascimento)'
+            'INSERT INTO clientes (usuario_id, cpf, data_nascimento, observacoes)
+             VALUES (:usuario_id, :cpf, :nascimento, :observacoes)'
         );
 
         $stmt->execute([
             'usuario_id' => $usuarioId,
             'cpf' => $cpf !== '' ? $cpf : null,
-            'nascimento' => $nascimento !== '' ? $nascimento : null
+            'nascimento' => $nascimento,
+            'observacoes' => $observacoes !== '' ? $observacoes : null
         ]);
 
         $pdo->commit();
@@ -170,7 +222,7 @@ try {
         'mensagem' => 'Ação de autenticação desconhecida.'
     ], 404);
 } catch (PDOException $e) {
-    if ($pdo->inTransaction()) {
+    if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
@@ -188,7 +240,7 @@ try {
         'mensagem' => 'Erro no banco durante a autenticação.'
     ], 500);
 } catch (Throwable $e) {
-    if ($pdo->inTransaction()) {
+    if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
 

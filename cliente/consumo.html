@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu consumo | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="/script.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="client-page">
 <div class="app-layout">
@@ -36,10 +36,14 @@
             <div>
                 <span class="eyebrow">DETALHES DA SUA EXPERIÊNCIA</span>
                 <h2>Consulte o catálogo.</h2>
-                <p>Veja os produtos disponibilizados pelo estabelecimento e acompanhe os consumos registrados na sua conta.</p>
+                <p>Solicite itens do frigobar após a equipe iniciar sua estadia no check-in e acompanhe aqui os lançamentos vinculados à sua conta.</p>
             </div>
             <span class="welcome-decoration" aria-hidden="true">✦</span>
         </section>
+
+        <div id="activeStayNotice" class="form-message" role="status" aria-live="polite">
+            O consumo é liberado quando a equipe confirma sua entrada e inicia a estadia.
+        </div>
 
         <section class="dashboard-section">
             <div class="section-heading">
@@ -69,7 +73,7 @@
                 <div class="empty-state-card">
                     <span class="empty-state-symbol" aria-hidden="true">◇</span>
                     <h3>Nenhum produto carregado</h3>
-                    <p>Os produtos e os preços aparecerão aqui depois que o administrador cadastrá-los e o catálogo for conectado ao banco de dados.</p>
+                    <p>Os produtos e os preços são definidos pela equipe. Para solicitar um item, é necessário ter uma estadia em andamento.</p>
                 </div>
             </div>
         </section>

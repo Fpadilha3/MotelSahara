@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#15110e">
+    <title>Acesso administrativo | Motel Sahara</title>
+    <meta name="description" content="Acesso restrito à equipe administrativa do Motel Sahara.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="script.js" defer></script>
+</head>
+<body class="auth-page">
+    <main class="auth-layout">
+        <section class="auth-showcase" aria-label="Painel administrativo Sahara">
+            <a href="index.html" class="brand brand-light" aria-label="Motel Sahara">
+                <span class="brand-symbol" aria-hidden="true">✦</span>
+                <span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">GESTÃO EXCLUSIVA</span></span>
+            </a>
+            <div class="showcase-content">
+                <span class="eyebrow"><span class="eyebrow-line"></span>ACESSO RESTRITO À EQUIPE</span>
+                <h1>Gestão com <span>excelência.</span></h1>
+                <p>Administre acomodações, preços, estoque, estadias e pagamentos em um ambiente dedicado à operação do Motel Sahara.</p>
+            </div>
+            <div class="showcase-footer"><span>SAHARA EXPERIENCE</span><span>GESTÃO · OPERAÇÃO · CONTROLE</span></div>
+        </section>
+
+        <section class="auth-panel">
+            <div class="auth-panel-top">
+                <a href="index.html" class="mobile-brand"><span class="brand-symbol" aria-hidden="true">✦</span><span>SAHARA</span></a>
+                <a href="index.html" class="back-link">← Área do cliente</a>
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-heading">
+                    <span class="section-kicker">PORTAL ADMINISTRATIVO</span>
+                    <h2>Bem-vindo <span>à gestão.</span></h2>
+                    <p>Entre com as credenciais de uma conta administrativa autorizada.</p>
+                </div>
+
+                <form id="loginForm" class="auth-form" action="api/auth.php?acao=login" method="POST" autocomplete="on">
+                    <input type="hidden" name="tipo_esperado" value="admin">
+                    <div class="form-group">
+                        <label for="email">E-mail administrativo</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">✉</span>
+                            <input type="email" id="email" name="email" placeholder="admin@exemplo.com" autocomplete="username" maxlength="190" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="senha">Senha</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">◇</span>
+                            <input type="password" id="senha" name="senha" placeholder="Digite sua senha" autocomplete="current-password" required>
+                        </div>
+                    </div>
+                    <div id="loginMessage" class="form-message" role="status" aria-live="polite" hidden></div>
+                    <button type="submit" class="btn btn-primary btn-full"><span>Acessar painel administrativo</span></button>
+                </form>
+
+                <div class="auth-assistance">
+                    <span class="assistance-icon" aria-hidden="true">◇</span>
+                    <p>Este acesso não permite criar contas administrativas. Para cadastrar um administrador, use o procedimento seguro da equipe técnica.</p>
+                </div>
+            </div>
+
+            <footer class="auth-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span class="footer-separator">·</span><span>Acesso restrito à equipe</span></footer>
+        </section>
+    </main>
+</body>
+</html>

@@ -64,6 +64,8 @@ function CriarTabelas(): void
                 NOT NULL DEFAULT 'standard',
             descricao TEXT DEFAULT NULL,
             capacidade_pessoas TINYINT UNSIGNED NOT NULL DEFAULT 2,
+            maximo_pessoas SMALLINT UNSIGNED NOT NULL DEFAULT 2,
+            preco_pessoa_extra DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             preco_periodo DECIMAL(10,2) NOT NULL,
             duracao_periodo_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 180,
             preco_hora_extra DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -113,8 +115,12 @@ function CriarTabelas(): void
             saida_prevista DATETIME DEFAULT NULL,
             saida_real DATETIME DEFAULT NULL,
             quantidade_pessoas TINYINT UNSIGNED NOT NULL DEFAULT 2,
+            pessoas_incluidas_aplicado SMALLINT UNSIGNED NOT NULL DEFAULT 2,
             preco_periodo_aplicado DECIMAL(10,2) NOT NULL,
+            preco_hora_extra_aplicado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            preco_pessoa_extra_aplicado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             percentual_taxa_aplicado DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+            valor_total_previsto DECIMAL(12,2) NOT NULL DEFAULT 0.00,
             observacoes VARCHAR(500) DEFAULT NULL,
             criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -211,6 +217,70 @@ function CriarTabelas(): void
     foreach ($sqls as $sql) {
         $pdo->exec($sql);
     }
+
+    $colunasNovas = [
+        'quartos' => [
+            'maximo_pessoas' => 'SMALLINT UNSIGNED NULL DEFAULT NULL',
+            'preco_pessoa_extra' => 'DECIMAL(10,2) NOT NULL DEFAULT 0.00'
+        ],
+        'estadias' => [
+            'pessoas_incluidas_aplicado' => 'SMALLINT UNSIGNED NULL DEFAULT NULL',
+            'preco_hora_extra_aplicado' => 'DECIMAL(10,2) NOT NULL DEFAULT 0.00',
+            'preco_pessoa_extra_aplicado' => 'DECIMAL(10,2) NOT NULL DEFAULT 0.00',
+            'valor_total_previsto' => 'DECIMAL(12,2) NOT NULL DEFAULT 0.00'
+        ]
+    ];
+
+    foreach ($colunasNovas as $tabela => $colunasTabela) {
+        foreach ($colunasTabela as $coluna => $definicao) {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*)
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = :tabela
+                   AND COLUMN_NAME = :coluna'
+            );
+            $stmt->execute([
+                'tabela' => $tabela,
+                'coluna' => $coluna
+            ]);
+
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec(
+                    'ALTER TABLE `' . $tabela . '` ADD COLUMN `'
+                    . $coluna . '` ' . $definicao
+                );
+            }
+        }
+    }
+
+    $pdo->exec(
+        'UPDATE quartos
+         SET maximo_pessoas = GREATEST(capacidade_pessoas, 1)
+         WHERE maximo_pessoas IS NULL'
+    );
+    $pdo->exec(
+        'ALTER TABLE quartos
+         MODIFY maximo_pessoas SMALLINT UNSIGNED NOT NULL DEFAULT 2'
+    );
+    $pdo->exec(
+        'UPDATE estadias e
+         INNER JOIN quartos q ON q.id = e.quarto_id
+         SET e.pessoas_incluidas_aplicado = q.capacidade_pessoas
+         WHERE e.pessoas_incluidas_aplicado IS NULL'
+    );
+    $pdo->exec(
+        'ALTER TABLE estadias
+         MODIFY pessoas_incluidas_aplicado SMALLINT UNSIGNED NOT NULL DEFAULT 2'
+    );
+    $pdo->exec(
+        'UPDATE estadias
+         SET valor_total_previsto = ROUND(
+             preco_periodo_aplicado * (1 + percentual_taxa_aplicado / 100),
+             2
+         )
+         WHERE valor_total_previsto = 0 AND preco_periodo_aplicado > 0'
+    );
 }
 
 try {

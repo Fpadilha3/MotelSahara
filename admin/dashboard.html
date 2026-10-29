@@ -6,8 +6,8 @@
     <title>Painel Administrativo | Motel Sahara</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/app.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="admin-page">
 
@@ -34,7 +34,7 @@
                 <a class="nav-link" href="frigobar.html">
                     <span>◇</span> Frigobar
                 </a>
-                <a class="nav-link" href="estadias.html">
+                <a class="nav-link" href="estadia.html">
                     <span>▤</span> Estadias
                 </a>
                 <a class="nav-link" href="pagamentos.html">
@@ -50,7 +50,7 @@
                         <span>Gestão Sahara</span>
                     </div>
                 </div>
-                <a href="../index.html" class="nav-link logout-link">
+                <a href="../index.html" class="nav-link logout-link" data-logout>
                     <span>↪</span> Sair da conta
                 </a>
             </div>
@@ -136,7 +136,7 @@
                         <span class="text-link">Acessar seção →</span>
                     </a>
 
-                    <a href="estadias.html" class="quick-action-card">
+                    <a href="estadia.html" class="quick-action-card">
                         <span class="quick-action-icon">▤</span>
                         <h3>Estadias</h3>
                         <p>Acompanhe reservas, entradas, saídas e consumos.</p>
@@ -158,7 +158,7 @@
                         <span class="section-kicker">MOVIMENTAÇÕES</span>
                         <h2>Estadias recentes</h2>
                     </div>
-                    <a class="text-link" href="estadias.html">Ver todas →</a>
+                    <a class="text-link" href="estadia.html">Ver todas →</a>
                 </div>
 
                 <div class="table-responsive">
@@ -169,12 +169,13 @@
                                 <th>Cliente</th>
                                 <th>Quarto</th>
                                 <th>Entrada</th>
+                                <th>Total previsto</th>
                                 <th>Situação</th>
                             </tr>
                         </thead>
                         <tbody id="recentStays">
                             <tr>
-                                <td colspan="5" class="empty-state">
+                                <td colspan="6" class="empty-state">
                                     Nenhuma movimentação carregada. Os registros aparecerão aqui após a integração com o banco.
                                 </td>
                             </tr>

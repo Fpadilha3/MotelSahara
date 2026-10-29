@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus pagamentos | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="/script.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="client-page">
 <div class="app-layout">
@@ -43,15 +43,28 @@
 
         <section class="stats-grid dashboard-section">
             <article class="stat-card">
-                <span class="stat-label">Total aprovado</span>
+                <span class="stat-label">Pagamentos pagos/confirmados</span>
                 <span class="stat-value" data-client-payment="aprovado">—</span>
                 <span class="stat-description">Pagamentos confirmados</span>
             </article>
             <article class="stat-card">
-                <span class="stat-label">Em aberto</span>
+                <span class="stat-label">Pagamentos pendentes</span>
                 <span class="stat-value" data-client-payment="pendente">—</span>
-                <span class="stat-description">Valores pendentes de confirmação</span>
+                <span class="stat-description">Lançamentos aguardando confirmação</span>
             </article>
+            <article class="stat-card">
+                <span class="stat-label">Saldo das estadias</span>
+                <span class="stat-value" data-client-payment-balance>—</span>
+                <span class="stat-description">Hospedagem e consumo menos pagamentos aprovados</span>
+            </article>
+        </section>
+
+        <section class="panel dashboard-section">
+            <div class="section-heading"><div><span class="section-kicker">RESUMO DA CONTA</span><h2>Valores por estadia</h2></div></div>
+            <div id="clientBillingSummary" class="quick-actions-grid">
+                <p class="muted-text">Os valores das estadias aparecerão aqui após o carregamento da conta.</p>
+            </div>
+            <p class="field-hint">Um pagamento é considerado pago somente quando aparece como “Pago/confirmado” no histórico, após validação pela equipe.</p>
         </section>
 
         <section class="panel dashboard-section">
@@ -115,7 +128,7 @@
                 <article class="quick-action-card">
                     <span class="quick-action-icon">✓</span>
                     <h3>Aprovado</h3>
-                    <p>O pagamento foi confirmado pelo sistema.</p>
+                    <p>O pagamento foi recebido e confirmado pela equipe.</p>
                 </article>
                 <article class="quick-action-card">
                     <span class="quick-action-icon">↺</span>

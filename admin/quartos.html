@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quartos e Suítes | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/app.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="admin-page">
 <div class="app-layout">
@@ -21,12 +21,12 @@
             <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
             <a class="nav-link active" href="quartos.html"><span>▦</span> Quartos e suítes</a>
             <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
-            <a class="nav-link" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
         </nav>
         <div class="sidebar-bottom">
             <div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div>
-            <a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a>
+            <a href="../index.html" class="nav-link logout-link" data-logout> <span>↪</span> Sair da conta</a>
         </div>
     </aside>
 
@@ -45,13 +45,13 @@
                 <div><span class="section-kicker">NOVA ACOMODAÇÃO</span><h2>Cadastrar quarto</h2></div>
             </div>
 
-            <form id="roomForm" class="data-form" action="../api/quartos.php" method="POST">
+            <form id="roomForm" class="data-form" action="../api/api.php?tabela=quartos" method="POST">
                 <input type="hidden" name="acao" value="criar">
 
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="numero">Número ou identificação *</label>
-                        <input class="form-control" id="numero" name="numero" type="text" maxlength="30" placeholder="Ex.: 01" required>
+                        <input class="form-control" id="numero" name="numero" type="text" maxlength="20" placeholder="Ex.: 01" required>
                     </div>
 
                     <div class="form-group">
@@ -71,8 +71,21 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="capacidade">Capacidade de pessoas *</label>
-                        <input class="form-control" id="capacidade" name="capacidade" type="number" min="1" max="50" required>
+                        <label for="capacidade">Pessoas incluídas no preço *</label>
+                        <input class="form-control" id="capacidade" name="capacidade_pessoas" type="number" min="1" max="100" required>
+                        <span class="field-hint">O preço-base cobre esta quantidade de pessoas.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maximo_pessoas">Limite total permitido, incluindo excedentes *</label>
+                        <input class="form-control" id="maximo_pessoas" name="maximo_pessoas" type="number" min="1" max="100" value="2" required>
+                        <span class="field-hint">Para aceitar excedentes, informe um limite maior que as pessoas incluídas. Se ambos forem iguais, ninguém acima da quantidade incluída poderá reservar. Ex.: 6 incluídas e limite 8 permitem cobrar 2 adicionais.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preco_pessoa_extra">Adicional por pessoa excedente (R$)</label>
+                        <input class="form-control" id="preco_pessoa_extra" name="preco_pessoa_extra" type="number" min="0" step="0.01" value="0.00" required>
+                        <span class="field-hint">Cobrado por pessoa acima da quantidade incluída.</span>
                     </div>
 
                     <div class="form-group">
@@ -81,13 +94,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="duracao">Duração do período (minutos) *</label>
-                        <input class="form-control" id="duracao" name="duracao_periodo_minutos" type="number" min="1" value="180" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="hora_extra">Preço da hora extra (R$)</label>
-                        <input class="form-control" id="hora_extra" name="preco_hora_extra" type="number" min="0" step="0.01" value="0.00">
+                        <label for="duracao">Duração do período-base (HH:MM) *</label>
+                        <input class="form-control" id="duracao" name="duracao_periodo_minutos" type="time" min="00:01" max="23:59" step="60" value="03:00" required>
+                        <span class="field-hint">Informe horas e minutos. O valor será convertido automaticamente e calculado proporcionalmente no agendamento.</span>
                     </div>
 
                     <div class="form-group">

@@ -183,6 +183,17 @@ button:disabled {
     display: none !important;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 
 /* ============================================================
    03. FUNDO E ORNAMENTOS ORIENTAIS
@@ -1964,10 +1975,27 @@ input[type="number"] {
         box-shadow var(--transition-normal);
 }
 
+.room-card-action {
+    display: block;
+    width: 100%;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.room-card-action:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 4px;
+}
+
+.room-card-action {
+    cursor: pointer;
+}
+
 .room-card:hover {
     border-color: var(--color-gold-border);
     box-shadow: var(--shadow-gold);
-    transform: translateY(-4px);
 }
 
 .room-card-image {
@@ -1991,6 +2019,22 @@ input[type="number"] {
     transition: transform 500ms ease;
 }
 
+.room-card-placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--color-gold);
+    font-size: 64px;
+    background:
+        radial-gradient(
+            ellipse at 50% 45%,
+            rgba(201, 164, 91, 0.16),
+            transparent 58%
+        ),
+        #211a13;
+}
+
 .room-card:hover .room-card-image img {
     transform: scale(1.045);
 }
@@ -1999,6 +2043,19 @@ input[type="number"] {
     position: absolute;
     top: 15px;
     left: 15px;
+}
+
+.room-card-action-hint {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    padding: 9px 12px;
+    border: 1px solid var(--color-gold-border);
+    border-radius: var(--radius-pill);
+    color: var(--color-ivory);
+    background: rgba(15, 12, 9, 0.82);
+    font-size: 10px;
+    font-weight: 600;
 }
 
 .room-card-body {
@@ -2068,6 +2125,139 @@ input[type="number"] {
     min-height: 40px;
     padding: 10px 13px;
     font-size: 10px;
+}
+
+.room-booking-dialog {
+    width: min(620px, calc(100% - 32px));
+    max-height: min(88vh, 850px);
+    overflow-y: auto;
+    margin: auto;
+    padding: 28px;
+    border: 1px solid var(--color-gold-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-gold);
+}
+
+.room-booking-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(5px);
+}
+
+.room-booking-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.room-booking-heading h2 {
+    margin: 6px 0 0;
+}
+
+.room-booking-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 9px 13px;
+    white-space: nowrap;
+}
+
+.room-booking-back span {
+    font-size: 17px;
+    line-height: 1;
+}
+
+.room-booking-details {
+    margin-bottom: 23px;
+    padding: 18px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.16);
+}
+
+.room-booking-details h3 {
+    margin: 0 0 8px;
+    font-family: var(--font-heading);
+    font-size: 1.7rem;
+}
+
+.room-booking-details p {
+    margin-bottom: 14px;
+    color: var(--color-text-soft);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.room-booking-details .room-card-meta {
+    margin-bottom: 12px;
+}
+
+.room-booking-details > strong {
+    color: var(--color-gold-light);
+}
+
+.room-booking-details .room-booking-rate {
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.room-booking-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.room-booking-form .form-message,
+.room-booking-form .btn,
+.room-booking-form .field-hint,
+.room-booking-summary {
+    grid-column: 1 / -1;
+}
+
+.room-booking-summary {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--color-gold-border);
+    border-radius: var(--radius-md);
+    background:
+        radial-gradient(ellipse at 100% 0%, rgba(201, 164, 91, 0.1), transparent 60%),
+        rgba(0, 0, 0, 0.18);
+}
+
+.room-booking-summary-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--color-text-soft);
+    font-size: 11px;
+}
+
+.room-booking-summary-row strong {
+    color: var(--color-ivory);
+    font-size: 12px;
+    text-align: right;
+}
+
+.room-booking-summary .room-booking-total {
+    margin-top: 3px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-gold-border);
+    color: var(--color-ivory);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.room-booking-summary .room-booking-total strong {
+    color: var(--color-gold-light);
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
 }
 
 
@@ -2170,6 +2360,26 @@ input[type="number"] {
 .product-card-footer .btn {
     min-height: 38px;
     padding: 9px 12px;
+    font-size: 10px;
+}
+
+.consumption-order {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.consumption-quantity {
+    width: 66px;
+    min-height: 38px;
+    padding: 7px;
+    text-align: center;
+}
+
+.data-table td .btn {
+    min-height: 34px;
+    margin: 3px 4px 3px 0;
+    padding: 7px 10px;
     font-size: 10px;
 }
 
@@ -2927,6 +3137,24 @@ input[type="number"] {
 
     .room-card-body {
         padding: 19px;
+    }
+
+    .room-booking-dialog {
+        padding: 20px;
+    }
+
+    .room-booking-heading {
+        align-items: center;
+    }
+
+    .room-booking-back {
+        padding: 8px 10px;
+        font-size: 9px;
+    }
+
+    .room-booking-form {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 13px;
     }
 
     .room-card-price {

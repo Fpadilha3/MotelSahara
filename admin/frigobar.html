@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frigobar | Motel Sahara</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/app.js" defer></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
 </head>
 <body class="admin-page">
 <div class="app-layout">
@@ -17,10 +17,10 @@
             <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
             <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
             <a class="nav-link active" href="frigobar.html"><span>◇</span> Frigobar</a>
-            <a class="nav-link" href="estadias.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
         </nav>
-        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link"><span>↪</span> Sair da conta</a></div>
+        <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
     </aside>
 
     <main class="main-content">
@@ -30,17 +30,17 @@
         <section class="panel dashboard-section">
             <div class="section-heading"><div><span class="section-kicker">NOVO PRODUTO</span><h2>Cadastrar item</h2></div></div>
 
-            <form id="productForm" class="data-form" action="../api/frigobar.php" method="POST">
+            <form id="productForm" class="data-form" action="../api/api.php?tabela=frigobar" method="POST">
                 <input type="hidden" name="acao" value="criar">
                 <div class="form-grid">
-                    <div class="form-group"><label for="produto_nome">Nome do produto *</label><input class="form-control" id="produto_nome" name="nome" maxlength="150" required placeholder="Nome do produto"></div>
+                    <div class="form-group"><label for="produto_nome">Nome do produto *</label><input class="form-control" id="produto_nome" name="nome" maxlength="120" required placeholder="Nome do produto"></div>
                     <div class="form-group"><label for="produto_categoria">Categoria *</label><select class="form-control" id="produto_categoria" name="categoria" required><option value="">Selecione</option><option value="bebida">Bebida</option><option value="snack">Snack</option><option value="doce">Doce</option><option value="higiene">Higiene</option><option value="outro">Outro</option></select></div>
                     <div class="form-group"><label for="produto_preco">Preço de venda (R$) *</label><input class="form-control" id="produto_preco" name="preco" type="number" min="0" step="0.01" required placeholder="0,00"></div>
                     <div class="form-group"><label for="produto_estoque">Quantidade em estoque *</label><input class="form-control" id="produto_estoque" name="estoque" type="number" min="0" step="1" required value="0"></div>
                     <div class="form-group"><label for="produto_taxa">Taxa adicional (%)</label><input class="form-control" id="produto_taxa" name="percentual_taxa" type="number" min="0" max="100" step="0.01" value="0"></div>
                     <div class="form-group"><label for="produto_status">Situação *</label><select class="form-control" id="produto_status" name="ativo" required><option value="1">Ativo</option><option value="0">Inativo</option></select></div>
                     <div class="form-group form-grid-full"><label for="produto_imagem">URL da imagem</label><input class="form-control" id="produto_imagem" name="imagem_url" type="url" maxlength="500" placeholder="https://..."></div>
-                    <div class="form-group form-grid-full"><label for="produto_descricao">Descrição</label><textarea class="form-control" id="produto_descricao" name="descricao" rows="3" maxlength="2000" placeholder="Informações adicionais do produto."></textarea></div>
+                    <div class="form-group form-grid-full"><label for="produto_descricao">Descrição</label><textarea class="form-control" id="produto_descricao" name="descricao" rows="3" maxlength="255" placeholder="Informações adicionais do produto."></textarea></div>
                 </div>
                 <div id="productMessage" class="form-message" role="status" hidden></div>
                 <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Salvar produto</button></div>
