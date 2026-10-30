@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informações do Motel | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../script.js" defer></script>
+</head>
+<body class="admin-page">
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="brand brand-light"><span class="brand-symbol">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">PAINEL ADMINISTRATIVO</span></span></a>
+        <div class="sidebar-section-title">GESTÃO</div>
+        <nav class="sidebar-nav" aria-label="Menu administrativo">
+            <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
+            <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
+            <a class="nav-link" href="promocoes.html"><span>%</span> Descontos e Promoções</a>
+            <a class="nav-link" href="frigobar.html"><span>◇</span> Consumo</a>
+            <a class="nav-link" href="estadia.html"><span>▤</span> Estadias</a>
+            <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+            <a class="nav-link active" href="informacoes.html"><span>⌖</span> Informações do Motel</a>
+        </nav>
+        <div class="sidebar-bottom"><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
+    </aside>
+    <main class="main-content">
+        <header class="topbar"><div><span class="section-kicker">PRESENÇA E CONTATO</span><h1 class="page-title">Informações do Motel</h1></div><button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button></header>
+        <div class="page-intro"><p>Preencha somente informações oficiais. Endereço, contatos e perfis cadastrados serão exibidos na página pública Sobre o Motel.</p></div>
+        <div class="notice-card"><strong>Antes de publicar:</strong> confirme o endereço, os contatos e os links oficiais. Campos vazios não serão exibidos aos visitantes.</div>
+        <section class="panel dashboard-section">
+            <form id="motelInfoForm">
+                <div class="form-grid">
+                    <div class="form-group"><label for="infoName">Nome do estabelecimento *</label><input class="form-control" id="infoName" name="nome" maxlength="120" required></div>
+                    <div class="form-group"><label for="infoEmail">E-mail</label><input class="form-control" id="infoEmail" name="email" type="email" maxlength="190"></div>
+                    <div class="form-group form-grid-full"><label for="infoDescription">Apresentação institucional</label><textarea class="form-control" id="infoDescription" name="descricao" rows="4" maxlength="5000"></textarea></div>
+                    <div class="form-group"><label for="infoAddress">Endereço</label><input class="form-control" id="infoAddress" name="endereco" maxlength="255"></div>
+                    <div class="form-group"><label for="infoDistrict">Bairro</label><input class="form-control" id="infoDistrict" name="bairro" maxlength="120"></div>
+                    <div class="form-group"><label for="infoCity">Cidade</label><input class="form-control" id="infoCity" name="cidade" maxlength="120"></div>
+                    <div class="form-group"><label for="infoState">Estado</label><input class="form-control" id="infoState" name="estado" maxlength="80"></div>
+                    <div class="form-group"><label for="infoReference">Referência</label><input class="form-control" id="infoReference" name="referencia" maxlength="255"></div>
+                    <div class="form-group form-grid-full"><label for="infoMap">Link oficial do Google Maps</label><input class="form-control" id="infoMap" name="google_maps_url" type="url" maxlength="500" placeholder="https://maps.google.com/..."></div>
+                    <div class="form-group"><label for="infoPhone">Telefone</label><input class="form-control" id="infoPhone" name="telefone" type="tel" maxlength="25"></div>
+                    <div class="form-group"><label for="infoWhatsapp">WhatsApp</label><input class="form-control" id="infoWhatsapp" name="whatsapp" type="tel" maxlength="25"><span class="field-hint">Informe o número com DDI e DDD; exibição do botão depende de um número válido.</span></div>
+                    <div class="form-group"><label for="infoHours">Horário de funcionamento</label><input class="form-control" id="infoHours" name="horario_atendimento" maxlength="255" placeholder="Ex.: De segunda a domingo — 24 horas"><span class="field-hint">O texto só será publicado após a confirmação abaixo.</span></div>
+                    <div class="form-group"><label class="checkbox-label" for="infoHoursConfirmed"><input id="infoHoursConfirmed" name="horario_confirmado" type="checkbox" value="1"> Confirmo que este horário está correto e pode ser publicado</label></div>
+                    <div class="form-group"><label for="infoInstagram">Instagram oficial</label><input class="form-control" id="infoInstagram" name="instagram_url" type="url" maxlength="500" placeholder="https://..."></div>
+                    <div class="form-group"><label for="infoFacebook">Facebook oficial</label><input class="form-control" id="infoFacebook" name="facebook_url" type="url" maxlength="500" placeholder="https://..."></div>
+                    <div class="form-group"><label for="infoTikTok">TikTok oficial</label><input class="form-control" id="infoTikTok" name="tiktok_url" type="url" maxlength="500" placeholder="https://..."></div>
+                    <div class="form-group form-grid-full"><label for="infoExtra">Outras informações</label><textarea class="form-control" id="infoExtra" name="outras_informacoes" rows="3" maxlength="5000"></textarea></div>
+                </div>
+                <div id="motelInfoMessage" class="form-message" role="status" aria-live="polite" hidden></div>
+                <div class="form-actions"><button type="submit" class="btn btn-primary">Salvar informações</button></div>
+            </form>
+        </section>
+        <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Gestão interna</span></footer>
+    </main>
+</div>
+</body>
+</html>

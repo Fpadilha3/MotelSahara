@@ -2036,24 +2036,34 @@ async function carregarDadosPainel() {
         const [usuarios, clientes] = raizAdmin
             ? await Promise.all([carregarTabela("usuarios"), carregarTabela("clientes")])
             : [[], []];
+        const carregaPagamentos = raizAdmin && selecionar("#paymentForm");
+        const [estadiasPendentesPagamento, configuracaoComercial] = carregaPagamentos
+            ? await Promise.all([
+                solicitarAPI("../api/api.php?tabela=estadias&acao=pagamentos_pendentes").then((resultado) => resultado.dados),
+                solicitarConfiguracao("comercial").then((resultado) => resultado.dados)
+            ])
+            : [[], null];
 
         Sahara.dadosPainel = {
             quartos,
             produtos,
             estadias,
+            estadiasPendentesPagamento,
             pagamentos,
             consumos,
             usuarios,
-            clientes
+            clientes,
+            configuracaoComercial
         };
 
-        atualizarFormularioPagamento();
         desenharListaQuartos(quartos, raizAdmin);
         desenharListaProdutos(produtos, raizAdmin, estadias);
         desenharListaEstadias(estadias, usuarios, clientes, quartos);
         desenharListaPagamentos(pagamentos, estadias);
         desenharListaConsumos(consumos, produtos);
         preencherIndicadores(quartos, estadias, pagamentos, consumos);
+        if (raizAdmin) await carregarConfiguracoesAdmin();
+        atualizarFormularioPagamento();
     } catch (erro) {
         const mensagem = selecionar("#consumptionMessage");
         if (mensagem) mostrarMensagem(mensagem, erro.message);
@@ -2122,7 +2132,17 @@ function desenharListaQuartos(quartos, admin) {
                                 <div class="room-card-price">
                                     <div>
                                         <span>VALOR DO PERÍODO</span>
-                                        <strong>${formatarMoeda(q.preco_periodo)}</strong>
+                                        ${promocaoValidaNaData(q, new Date())
+                                            ? `<span class="promotion-price-original">${formatarMoeda(q.preco_periodo)}</span>
+                                               <strong class="promotion-price-current">${formatarMoeda(precoComPromocao(q))}</strong>
+                                               <span class="promotion-label">${escaparHTML(rotuloPromocao(q))}</span>`
+                                            : `<strong>${formatarMoeda(q.preco_periodo)}</strong>`}
+                                        ${promocaoExibivel(q) && !promocaoValidaNaData(q, new Date())
+                                            ? `<span class="promotion-label">Oferta programada · ${escaparHTML(rotuloPromocao(q))}</span>`
+                                            : ""}
+                                        ${promocaoExibivel(q)
+                                            ? `<span class="promotion-terms">${escaparHTML(textoCondicoesPromocao(q))}</span>`
+                                            : ""}
                                     </div>
                                 </div>
                             </div>
@@ -2199,6 +2219,9 @@ function desenharListaQuartos(quartos, admin) {
                         <p class="room-booking-rate">Período-base: ${Number(periodo)} min · ${formatarMoeda(quarto.preco_periodo)}. ${maximo > incluidos
                             ? `Acima de ${incluidos} pessoas, cobra-se ${formatarMoeda(quarto.preco_pessoa_extra)} por pessoa excedente, até ${maximo} pessoas.`
                             : `O limite cadastrado é ${maximo} pessoas. A equipe pode aumentar esse limite para permitir pessoas excedentes.`}</p>
+                        ${promocaoExibivel(quarto)
+                            ? `<p class="promotion-terms">${escaparHTML(textoCondicoesPromocao(quarto))}</p>`
+                            : ""}
                     `;
 
                     const paraCampo = (data) => [
@@ -2244,10 +2267,21 @@ function desenharListaQuartos(quartos, admin) {
                             timeStyle: "short"
                         });
 
-                        const precoPeriodo = Number(quarto.preco_periodo);
+                        const precoPeriodoOriginal = Number(quarto.preco_periodo);
+                        const promocaoAplicavel = promocaoValidaNaData(quarto, inicio);
+                        const precoPeriodo = promocaoAplicavel
+                            ? precoComPromocao(quarto)
+                            : precoPeriodoOriginal;
+                        const precoTempoOriginal = Math.round(
+                            precoPeriodoOriginal * duracaoMinutos / periodo * 100
+                        ) / 100;
                         const precoTempo = Math.round(
                             precoPeriodo * duracaoMinutos / periodo * 100
                         ) / 100;
+                        const descontoPromocional = Math.max(
+                            0,
+                            Math.round((precoTempoOriginal - precoTempo) * 100) / 100
+                        );
                         const quantidadeExtra = Math.max(0, quantidadePessoas - incluidos);
                         const valorPessoasExtras = Math.round(
                             quantidadeExtra * Number(quarto.preco_pessoa_extra) * 100
@@ -2258,6 +2292,10 @@ function desenharListaQuartos(quartos, admin) {
                         ) / 100;
                         const total = Math.round((subtotal + valorTaxa) * 100) / 100;
                         resumoPreco.innerHTML = `
+                            ${promocaoAplicavel
+                                ? `<div class="room-booking-summary-row"><span>Preço original pelo tempo escolhido</span><strong class="promotion-price-original">${formatarMoeda(precoTempoOriginal)}</strong></div>
+                                       <div class="room-booking-summary-row"><span>Desconto promocional (${Number(quarto.promocao_valor)}%)</span><strong>−${formatarMoeda(descontoPromocional)}</strong></div>`
+                                : ""}
                             <div class="room-booking-summary-row"><span>Preço pelo tempo escolhido (${String(partesDuracao[0]).padStart(2, "0")}:${String(partesDuracao[1]).padStart(2, "0")})</span><strong>${formatarMoeda(precoTempo)}</strong></div>
                             ${quantidadeExtra
                                 ? `<div class="room-booking-summary-row"><span>${quantidadeExtra} pessoa(s) excedente(s)</span><strong>${formatarMoeda(valorPessoasExtras)}</strong></div>`
@@ -2303,7 +2341,9 @@ function desenharListaQuartos(quartos, admin) {
                         );
                         mostrarMensagem(
                             mensagem,
-                            `${resposta.mensagem} Total previsto: ${formatarMoeda(resposta.valor_total_previsto)}. Código do pedido: ${resposta.codigo}.`,
+                            `${resposta.mensagem}${Number(resposta.valor_desconto_promocional) > 0
+                                ? ` Desconto promocional aplicado: −${formatarMoeda(resposta.valor_desconto_promocional)}.`
+                                : ""} Total previsto: ${formatarMoeda(resposta.valor_total_previsto)}. Código do pedido: ${resposta.codigo}.`,
                             true
                         );
                         await carregarDadosPainel();
@@ -2430,7 +2470,13 @@ function desenharListaProdutos(produtos, admin, estadias = []) {
             grid.innerHTML = lista.length
                 ? lista.map((p) => {
                     const indisponivel = Number(p.estoque) < 1 || !estadiaAtual;
+                    const imagem = String(p.imagem_url || "").trim();
                     return `<article class="product-card">
+                        <div class="product-card-image">
+                            ${imagem
+                                ? `<img data-product-image src="${escaparHTML(imagem)}" alt="${escaparHTML(p.nome)}" loading="lazy" decoding="async">`
+                                : '<span class="product-card-placeholder" aria-hidden="true">✦</span>'}
+                        </div>
                         <div class="product-card-body">
                             <span class="product-card-category">${escaparHTML(p.categoria)}</span>
                             <h3>${escaparHTML(p.nome)}</h3>
@@ -2449,6 +2495,15 @@ function desenharListaProdutos(produtos, admin, estadias = []) {
                     </article>`;
                 }).join("")
                 : '<div class="empty-state-card"><h3>Nenhum produto disponível</h3></div>';
+            grid.querySelectorAll("img[data-product-image]").forEach((imagem) => {
+                imagem.addEventListener("error", () => {
+                    const placeholder = document.createElement("span");
+                    placeholder.className = "product-card-placeholder";
+                    placeholder.setAttribute("aria-hidden", "true");
+                    placeholder.textContent = "✦";
+                    imagem.replaceWith(placeholder);
+                }, { once: true });
+            });
         }
     };
 
@@ -2520,26 +2575,144 @@ function iniciarEdicaoFormulario(seletor, endpoint, id, registro, textoBotao) {
 }
 
 function calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos) {
-    const consumo = consumos
+    const consumoCalculado = consumos
         .filter((item) => Number(item.estadia_id) === Number(estadia.id))
         .reduce((total, item) => total + Number(item.subtotal) *
             (1 + Number(item.percentual_taxa_aplicado) / 100), 0);
+    const consumo = Object.prototype.hasOwnProperty.call(estadia, "consumo_total")
+        ? Number(estadia.consumo_total)
+        : consumoCalculado;
     const hospedagem = Number(estadia.valor_total_previsto || 0);
     const total = Math.round((hospedagem + consumo) * 100) / 100;
-    const pago = Math.round(pagamentos
-        .filter((pagamento) =>
-            Number(pagamento.estadia_id) === Number(estadia.id) &&
-            pagamento.status === "aprovado"
-        )
-        .reduce((soma, pagamento) => soma + Number(pagamento.valor), 0) * 100) / 100;
+    const pagamentosEstadia = pagamentos.filter((pagamento) =>
+        Number(pagamento.estadia_id) === Number(estadia.id) &&
+        pagamento.status === "aprovado"
+    );
+    const pago = Object.prototype.hasOwnProperty.call(estadia, "pagamentos_confirmados")
+        ? Number(estadia.pagamentos_confirmados)
+        : Math.round(pagamentosEstadia.reduce((soma, pagamento) =>
+            soma + Number(pagamento.valor), 0) * 100) / 100;
+    const desconto = Object.prototype.hasOwnProperty.call(estadia, "descontos_aplicados")
+        ? Number(estadia.descontos_aplicados)
+        : Math.round(pagamentosEstadia.reduce((soma, pagamento) =>
+            soma + Number(pagamento.desconto_aplicado || 0), 0) * 100) / 100;
+    const saldo = Object.prototype.hasOwnProperty.call(estadia, "saldo_pendente")
+        ? Number(estadia.saldo_pendente)
+        : Math.max(0, Math.round((total - pago - desconto) * 100) / 100);
 
     return {
         hospedagem,
         consumo: Math.round(consumo * 100) / 100,
         total,
         pago,
-        saldo: Math.max(0, Math.round((total - pago) * 100) / 100)
+        desconto,
+        saldo: Math.max(0, Math.round(saldo * 100) / 100)
     };
+}
+
+function calcularDescontoPagamento(estadia, saldo, metodo) {
+    const comercial = Sahara.dadosPainel.configuracaoComercial?.comercial || {};
+    if (Number(comercial.desconto_vista_ativo) !== 1 || saldo <= 0) return 0;
+
+    const metodosElegiveis = String(comercial.metodos_elegiveis || "")
+        .split(",")
+        .map((item) => item.trim());
+    if (!metodosElegiveis.includes(metodo)) return 0;
+
+    if (
+        Number(estadia.valor_desconto_promocional || 0) > 0
+        && (
+            Number(estadia.promocao_cumulativa_aplicada) !== 1
+            || Number(comercial.desconto_vista_cumulativo) !== 1
+        )
+    ) return 0;
+
+    const agora = new Date();
+    const inicio = comercial.inicio_em ? converterDataBanco(comercial.inicio_em) : null;
+    const fim = comercial.fim_em ? converterDataBanco(comercial.fim_em) : null;
+    if ((inicio && agora < inicio) || (fim && agora > fim)) return 0;
+
+    const valor = Number(comercial.desconto_vista_valor || 0);
+    const desconto = comercial.desconto_vista_tipo === "percentual"
+        ? Math.round(saldo * valor) / 100
+        : valor;
+    return Math.min(saldo, Math.max(0, Math.round(desconto * 100) / 100));
+}
+
+function calcularTaxaOperacionalPreview(metodo, prazo, valorBase) {
+    const taxas = Sahara.dadosPainel.configuracaoComercial?.taxas || [];
+    const taxa = taxas.find((item) =>
+        item.metodo === metodo &&
+        Number(item.prazo_recebimento_dias) === Number(prazo)
+    );
+    if (!taxa) return null;
+
+    const percentual = Number(taxa.percentual || 0);
+    const fixa = Number(taxa.tarifa_fixa || 0);
+    return {
+        percentual,
+        fixa,
+        valor: Math.round((valorBase * percentual / 100 + fixa) * 100) / 100,
+        ativa: Number(taxa.ativa) === 1,
+        repassarConfigurado: Number(taxa.repassar_cliente) === 1,
+        condicoes: String(taxa.condicoes || "")
+    };
+}
+
+function calcularValorBaseComTaxa(totalCobrado, taxa) {
+    const total = Math.round(Number(totalCobrado || 0) * 100) / 100;
+    if (!taxa?.ativa || !taxa.repassarConfigurado) {
+        return { valor: total, taxa: 0, total };
+    }
+
+    const percentual = Number(taxa.percentual || 0);
+    const fixa = Number(taxa.fixa || 0);
+    const estimativa = Math.round(
+        ((total - fixa) / (1 + percentual / 100)) * 100
+    );
+    for (let ajuste = -5; ajuste <= 5; ajuste += 1) {
+        const valor = (estimativa + ajuste) / 100;
+        if (valor <= 0) continue;
+        const taxaCalculada = Math.round(
+            (valor * percentual / 100 + fixa) * 100
+        ) / 100;
+        const totalCalculado = Math.round((valor + taxaCalculada) * 100) / 100;
+        if (totalCalculado === total) {
+            return { valor, taxa: taxaCalculada, total: totalCalculado };
+        }
+    }
+
+    return null;
+}
+
+function atualizarOpcoesPrazoPagamento() {
+    const metodo = selecionar("#pagamento_metodo");
+    const prazo = selecionar("#paymentFeeTerm");
+    const controles = selecionar("#paymentFeeSettings");
+    if (!metodo || !prazo || !controles) return;
+
+    const taxasCredito = (Sahara.dadosPainel.configuracaoComercial?.taxas || [])
+        .filter((taxa) => taxa.metodo === "credito")
+        .sort((a, b) => Number(a.prazo_recebimento_dias) - Number(b.prazo_recebimento_dias));
+    const anterior = prazo.value;
+    prazo.innerHTML = taxasCredito.map((taxa) => {
+        const dias = Number(taxa.prazo_recebimento_dias);
+        const estado = Number(taxa.ativa) === 1 ? "configurada/ativa" : "referência inativa";
+        const descricao = `${dias} ${dias === 1 ? "dia" : "dias"} · ${Number(taxa.percentual)}% + ${formatarMoeda(taxa.tarifa_fixa)} · ${estado}`;
+        return `<option value="${dias}">${escaparHTML(descricao)}</option>`;
+    }).join("");
+
+    if (taxasCredito.some((taxa) => String(taxa.prazo_recebimento_dias) === anterior)) {
+        prazo.value = anterior;
+    }
+
+    const temPrazo = taxasCredito.length > 0;
+    controles.hidden = metodo.value !== "credito";
+    prazo.disabled = metodo.value !== "credito";
+    if (!temPrazo) {
+        prazo.innerHTML = '<option value="">Nenhuma taxa de crédito configurada</option>';
+        prazo.disabled = true;
+    }
 }
 
 function atualizarFormularioPagamento() {
@@ -2549,49 +2722,171 @@ function atualizarFormularioPagamento() {
     const resumoElemento = selecionar("#paymentStaySummary");
     if (!formulario || !selecaoEstadia || !campoValor || !resumoElemento) return;
 
-    const { estadias = [], usuarios = [], clientes = [], consumos = [], pagamentos = [] } = Sahara.dadosPainel;
+    const {
+        estadiasPendentesPagamento = [],
+        usuarios = [],
+        clientes = [],
+        consumos = [],
+        pagamentos = []
+    } = Sahara.dadosPainel;
+    const metodoPagamento = selecionar("#pagamento_metodo");
+    const situacaoPagamento = selecionar("#pagamento_status");
+    const previewDesconto = selecionar("#paymentDiscountPreview");
+    const previewTaxa = selecionar("#paymentFeePreview");
+    const campoPrazo = selecionar("#paymentFeeTerm");
+    const botaoRegistrar = formulario.querySelector('button[type="submit"]');
     const nomesUsuarios = new Map(usuarios.map((usuario) => [Number(usuario.id), usuario.nome]));
     const nomesClientes = new Map(clientes.map((cliente) => [
         Number(cliente.id),
         nomesUsuarios.get(Number(cliente.usuario_id)) || `Cliente #${cliente.id}`
     ]));
     const selecaoAnterior = selecaoEstadia.value;
-    selecaoEstadia.innerHTML = '<option value="">Selecione uma estadia</option>';
+    selecaoEstadia.innerHTML = '<option value="">Selecione uma estadia com saldo pendente</option>';
 
-    estadias
-        .filter((estadia) => estadia.status !== "cancelada")
-        .forEach((estadia) => {
-            const conta = calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos);
-            const option = document.createElement("option");
-            option.value = String(estadia.id);
-            option.textContent = `${estadia.codigo} · ${nomesClientes.get(Number(estadia.cliente_id)) || `Cliente #${estadia.cliente_id}`} · Em aberto ${formatarMoeda(conta.saldo)}`;
-            selecaoEstadia.append(option);
-        });
+    estadiasPendentesPagamento.forEach((estadia) => {
+        const conta = calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos);
+        const option = document.createElement("option");
+        option.value = String(estadia.id);
+        option.textContent = `${estadia.codigo} · ${nomesClientes.get(Number(estadia.cliente_id)) || `Cliente #${estadia.cliente_id}`} · Em aberto ${formatarMoeda(conta.saldo)}`;
+        selecaoEstadia.append(option);
+    });
+    if (!estadiasPendentesPagamento.length) {
+        selecaoEstadia.options[0].textContent = "Nenhuma estadia com saldo pendente";
+        resumoElemento.textContent = "Não há estadias com saldo pendente para registrar pagamentos.";
+        if (botaoRegistrar) botaoRegistrar.disabled = true;
+    } else if (botaoRegistrar) {
+        botaoRegistrar.disabled = false;
+    }
 
-    if (selecaoAnterior && estadias.some((estadia) => String(estadia.id) === selecaoAnterior)) {
+    if (selecaoAnterior && estadiasPendentesPagamento.some((estadia) => String(estadia.id) === selecaoAnterior)) {
         selecaoEstadia.value = selecaoAnterior;
     }
 
-    const atualizarResumo = () => {
-        const estadia = estadias.find((registro) => String(registro.id) === selecaoEstadia.value);
+    const atualizarResumo = (atualizarValor = false) => {
+        const estadia = estadiasPendentesPagamento.find((registro) => String(registro.id) === selecaoEstadia.value);
         if (!estadia) {
-            resumoElemento.textContent = "Selecione uma estadia para consultar o total, os valores já pagos e o saldo em aberto.";
+            resumoElemento.textContent = estadiasPendentesPagamento.length
+                ? "Selecione uma estadia para consultar o total, os valores já pagos e o saldo em aberto."
+                : "Não há estadias com saldo pendente para registrar pagamentos.";
+            if (previewDesconto) previewDesconto.textContent = "";
+            if (previewDesconto) previewDesconto.hidden = true;
+            if (previewTaxa) {
+                previewTaxa.textContent = "";
+                previewTaxa.hidden = true;
+            }
+            campoValor.value = "";
             return;
         }
 
         const conta = calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos);
+        const metodo = metodoPagamento?.value || "";
+        const descontoVista = metodo ? calcularDescontoPagamento(estadia, conta.saldo, metodo) : 0;
+        const valorParaQuitacao = Math.max(0, Math.round((conta.saldo - descontoVista) * 100) / 100);
+        const taxaQuitacao = metodo
+            ? calcularTaxaOperacionalPreview(
+                metodo,
+                metodo === "credito" ? campoPrazo?.value : 0,
+                valorParaQuitacao
+            )
+            : null;
+        const taxaQuitacaoRepassada = taxaQuitacao?.ativa && taxaQuitacao.repassarConfigurado
+            ? taxaQuitacao.valor
+            : 0;
+        const totalParaQuitacao = Math.round((valorParaQuitacao + taxaQuitacaoRepassada) * 100) / 100;
+        if (atualizarValor) campoValor.value = totalParaQuitacao > 0 ? totalParaQuitacao.toFixed(2) : "";
+        const aguardandoAprovacao = situacaoPagamento?.value !== "aprovado";
+        const totalAtual = Math.round((Number(campoValor.value) || 0) * 100) / 100;
+        const valoresAtuais = totalAtual > 0
+            ? calcularValorBaseComTaxa(totalAtual, taxaQuitacao)
+            : { valor: 0, taxa: 0, total: 0 };
+        const valorAtual = valoresAtuais?.valor || 0;
+        const taxaAtualRepassada = valoresAtuais?.taxa || 0;
+        campoValor.setCustomValidity(
+            totalAtual > 0 && !valoresAtuais
+                ? "O total informado não corresponde à taxa configurada."
+                : ""
+        );
+        const descontoAplicavel = descontoVista > 0
+            && situacaoPagamento?.value === "aprovado"
+            && Math.round(valorAtual * 100) === Math.round(valorParaQuitacao * 100);
+        const promocao = Math.round(
+            Number(estadia.valor_desconto_promocional || 0)
+            * (1 + Number(estadia.percentual_taxa_aplicado || 0) / 100)
+            * 100
+        ) / 100;
+        const hospedagemOriginal = Math.round(
+            (conta.hospedagem + promocao) * 100
+        ) / 100;
+        const taxaOperacional = metodo
+            ? calcularTaxaOperacionalPreview(
+                metodo,
+                metodo === "credito" ? campoPrazo?.value : 0,
+                valorAtual || valorParaQuitacao
+            )
+            : null;
+        const prazoDetalhe = metodo === "credito" && campoPrazo?.value
+            ? `, referência de recebimento em ${campoPrazo.value} dias`
+            : "";
+        const saldoAposPagamento = situacaoPagamento?.value === "aprovado"
+            ? Math.max(0, Math.round(
+                (conta.saldo - valorAtual - (descontoAplicavel ? descontoVista : 0)) * 100
+            ) / 100)
+            : conta.saldo;
+        const condicoesDesconto = String(
+            Sahara.dadosPainel.configuracaoComercial?.comercial?.condicoes || ""
+        ).trim();
         resumoElemento.innerHTML = `
-            <div class="room-booking-summary-row"><span>Hospedagem prevista</span><strong>${formatarMoeda(conta.hospedagem)}</strong></div>
+            ${promocao > 0 ? `<div class="room-booking-summary-row"><span>Hospedagem antes da promoção</span><strong>${formatarMoeda(hospedagemOriginal)}</strong></div><div class="room-booking-summary-row"><span>Desconto promocional da suíte</span><strong>− ${formatarMoeda(promocao)}</strong></div>` : ""}
+            <div class="room-booking-summary-row"><span>Hospedagem após promoção</span><strong>${formatarMoeda(conta.hospedagem)}</strong></div>
             <div class="room-booking-summary-row"><span>Consumo</span><strong>${formatarMoeda(conta.consumo)}</strong></div>
             <div class="room-booking-summary-row"><span>Total da estadia</span><strong>${formatarMoeda(conta.total)}</strong></div>
             <div class="room-booking-summary-row"><span>Pagamentos confirmados</span><strong>${formatarMoeda(conta.pago)}</strong></div>
-            <div class="room-booking-summary-row room-booking-total"><span>Saldo em aberto</span><strong>${formatarMoeda(conta.saldo)}</strong></div>
+            ${conta.desconto ? `<div class="room-booking-summary-row"><span>Descontos já aplicados</span><strong>− ${formatarMoeda(conta.desconto)}</strong></div>` : ""}
+            <div class="room-booking-summary-row"><span>Saldo antes deste lançamento</span><strong>${formatarMoeda(conta.saldo)}</strong></div>
+            ${descontoVista > 0 ? `<div class="room-booking-summary-row"><span>Desconto à vista ${descontoAplicavel ? "aplicado" : "previsto para quitação"}</span><strong>− ${formatarMoeda(descontoVista)}</strong></div>` : ""}
+            <div class="room-booking-summary-row"><span>Valor da estadia para quitar</span><strong>${formatarMoeda(valorParaQuitacao)}</strong></div>
+            ${taxaOperacional ? `<div class="room-booking-summary-row payment-operational-fee"><span>${taxaOperacional.ativa ? "Custo operacional estimado" : "Taxa de referência (inativa)"} · ${taxaOperacional.percentual}% + ${formatarMoeda(taxaOperacional.fixa)}${prazoDetalhe}</span><strong>${formatarMoeda(taxaOperacional.valor)}</strong></div>` : ""}
+            ${taxaAtualRepassada > 0 ? `<div class="room-booking-summary-row"><span>Taxa do cartão repassada</span><strong>${formatarMoeda(taxaAtualRepassada)}</strong></div>` : ""}
+            <div class="room-booking-summary-row"><span>Total cobrado do cliente</span><strong>${formatarMoeda(totalAtual || totalParaQuitacao)}</strong></div>
+            <div class="room-booking-summary-row room-booking-total"><span>${situacaoPagamento?.value === "aprovado" ? "Saldo após aprovação" : "Saldo atual (lançamento não aprovado)"}</span><strong>${formatarMoeda(saldoAposPagamento)}</strong></div>
         `;
-        campoValor.value = conta.saldo > 0 ? conta.saldo.toFixed(2) : "";
+        if (previewDesconto) {
+            previewDesconto.textContent = descontoVista > 0
+                ? `Desconto à vista de ${formatarMoeda(descontoVista)} ao quitar o saldo. Valor da estadia: ${formatarMoeda(valorParaQuitacao)}; total com taxas configuradas: ${formatarMoeda(totalParaQuitacao)}.${aguardandoAprovacao ? " Será efetivado após a aprovação do recebimento." : ""} Pagamentos parciais não recebem este desconto.${condicoesDesconto ? ` Condições: ${condicoesDesconto}` : ""}`
+                : "Sem desconto à vista para este método ou estadia.";
+            previewDesconto.hidden = !metodo;
+        }
+        if (previewTaxa) {
+            previewTaxa.textContent = taxaOperacional
+                ? `${taxaOperacional.ativa
+                    ? `Custo operacional estimado: ${formatarMoeda(taxaOperacional.valor)}.`
+                    : `Referência não ativa: estimativa de ${formatarMoeda(taxaOperacional.valor)}.`}${taxaOperacional.ativa && taxaOperacional.repassarConfigurado
+                    ? ` Será somada uma única vez ao total cobrado do cliente (${formatarMoeda(taxaAtualRepassada || taxaQuitacaoRepassada)}).`
+                    : " Não será somada ao total do cliente; o custo fica absorvido pelo estabelecimento."}${taxaOperacional.condicoes ? ` Condições: ${taxaOperacional.condicoes}` : ""}`
+                : "Não há taxa de referência cadastrada para este método.";
+            previewTaxa.hidden = !metodo;
+        }
     };
 
-    selecaoEstadia.onchange = atualizarResumo;
-    atualizarResumo();
+    atualizarOpcoesPrazoPagamento();
+    selecaoEstadia.onchange = () => atualizarResumo(true);
+    metodoPagamento.onchange = () => {
+        atualizarOpcoesPrazoPagamento();
+        atualizarResumo(true);
+    };
+    campoPrazo?.addEventListener("change", () => atualizarResumo(true));
+    situacaoPagamento.onchange = () => atualizarResumo(false);
+    campoValor.oninput = () => atualizarResumo(false);
+    atualizarResumo(!selecaoAnterior);
+    if (formulario.dataset.paymentResetHandler !== "true") {
+        formulario.dataset.paymentResetHandler = "true";
+        formulario.addEventListener("reset", () => {
+            window.setTimeout(() => {
+                atualizarOpcoesPrazoPagamento();
+                atualizarResumo(false);
+            }, 0);
+        });
+    }
 }
 
 function desenharListaEstadias(estadias, usuarios, clientes, quartos) {
@@ -2732,12 +3027,28 @@ function desenharListaPagamentos(pagamentos, estadias) {
         const linhas = lista.map((p) => {
             const estadia = estadiaPorId.get(Number(p.estadia_id));
             const situacao = rotulosPagamento[p.status] || p.status;
+            const valorCliente = Number(p.valor_cobrado_cliente || p.valor);
+            const detalhesValor = [
+                Number(p.taxa_repassada_cliente_aplicada) === 1 && Number(p.taxa_operacional_aplicada) > 0
+                    ? `Inclui taxa: ${formatarMoeda(p.taxa_operacional_aplicada)}`
+                    : "",
+                Number(p.desconto_aplicado) > 0
+                    ? `Desconto à vista: ${formatarMoeda(p.desconto_aplicado)}`
+                    : ""
+            ].filter(Boolean);
+            const valorRegistrado = `${formatarMoeda(valorCliente)}${detalhesValor.length
+                ? `<small class="payment-history-discount">${detalhesValor.map(escaparHTML).join(" · ")}</small>`
+                : ""}`;
+            const custoOperacional = Number(p.taxa_operacional_aplicada) > 0
+                ? `${formatarMoeda(p.taxa_operacional_aplicada)}<small class="payment-history-discount">${Number(p.percentual_taxa_operacional_aplicada)}% + ${formatarMoeda(p.tarifa_fixa_operacional_aplicada)} · ${Number(p.taxa_repassada_cliente_aplicada) === 1 ? "repassado" : "absorvido"}</small>`
+                : "—";
             return cliente
-                ? criarLinhaTabela([escaparHTML(estadia?.codigo || `#${p.estadia_id}`), escaparHTML(p.pago_em || p.criado_em || ""), escaparHTML(p.metodo), formatarMoeda(p.valor), escaparHTML(situacao)])
+                ? criarLinhaTabela([escaparHTML(estadia?.codigo || `#${p.estadia_id}`), escaparHTML(p.pago_em || p.criado_em || ""), escaparHTML(p.metodo), valorRegistrado, escaparHTML(situacao)])
                 : criarLinhaTabela([
                     String(p.id),
                     escaparHTML(estadia?.codigo || `#${p.estadia_id}`),
-                    formatarMoeda(p.valor),
+                    valorRegistrado,
+                    custoOperacional,
                     escaparHTML(p.metodo),
                     escaparHTML(p.pago_em || p.criado_em || ""),
                     escaparHTML(situacao),
@@ -2746,7 +3057,7 @@ function desenharListaPagamentos(pagamentos, estadias) {
                         : "—"
                 ]);
         });
-        desenharTabela(tbody, linhas, cliente ? 5 : 7, "Nenhum pagamento registrado.");
+        desenharTabela(tbody, linhas, cliente ? 5 : 8, "Nenhum pagamento registrado.");
     };
     if (tbody.id === "paymentsTable" && tbody.dataset.confirmHandler !== "true") {
         tbody.dataset.confirmHandler = "true";
@@ -2812,7 +3123,11 @@ function preencherIndicadores(quartos, estadias, pagamentos, consumos) {
     const campoEstadia = selecionar('[data-client-stat="estadia"]');
     const campoConsumos = selecionar('[data-client-stat="consumos"]');
     const campoPendentes = selecionar('[data-client-stat="pendentes"]');
-    if (campoEstadia) campoEstadia.textContent = estadiaAtual ? estadiaAtual.codigo : "Nenhuma";
+    if (campoEstadia) {
+        campoEstadia.textContent = estadiaAtual
+            ? `Estadia de ${formatarDataEstadia(estadiaAtual.entrada_prevista || estadiaAtual.entrada_real)}`
+            : "Nenhuma";
+    }
     if (campoConsumos) campoConsumos.textContent = String(consumos.length);
     if (campoPendentes) campoPendentes.textContent = String(pagamentos.filter((p) => p.status === "pendente").length);
 
@@ -2833,7 +3148,9 @@ function preencherIndicadores(quartos, estadias, pagamentos, consumos) {
     });
     ["aprovado", "pendente"].forEach((status) => {
         const elemento = selecionar(`[data-client-payment="${status}"]`);
-        const soma = pagamentos.filter((p) => p.status === status).reduce((total, p) => total + Number(p.valor), 0);
+        const soma = pagamentos
+            .filter((p) => p.status === status)
+            .reduce((total, p) => total + Number(p.valor_cobrado_cliente || p.valor), 0);
         if (elemento) elemento.textContent = formatarMoeda(soma);
     });
 
@@ -2857,15 +3174,482 @@ function preencherIndicadores(quartos, estadias, pagamentos, consumos) {
                             : conta.pago > 0
                                 ? "Parcialmente pago"
                                 : "Em aberto";
+                    const pagamentosConfirmados = pagamentos.filter((pagamento) =>
+                        Number(pagamento.estadia_id) === Number(estadia.id)
+                        && pagamento.status === "aprovado"
+                    );
+                    const totalCobrado = pagamentosConfirmados.reduce((total, pagamento) =>
+                        total + Number(pagamento.valor_cobrado_cliente || pagamento.valor), 0);
+                    const taxasRepassadas = pagamentosConfirmados.reduce((total, pagamento) =>
+                        total + (Number(pagamento.taxa_repassada_cliente_aplicada) === 1
+                            ? Number(pagamento.taxa_operacional_aplicada || 0)
+                            : 0), 0);
                     return `<article class="quick-action-card">
                         <span class="quick-action-icon">＄</span>
-                        <h3>${escaparHTML(estadia.codigo)} · ${escaparHTML(situacao)}</h3>
-                        <p>Hospedagem: ${formatarMoeda(conta.hospedagem)}<br>Consumo: ${formatarMoeda(conta.consumo)}<br>Pago/confirmado: ${formatarMoeda(conta.pago)}</p>
+                        <h3>Estadia de ${escaparHTML(formatarDataEstadia(estadia.entrada_prevista || estadia.entrada_real))} · ${escaparHTML(situacao)}</h3>
+                        <p>Hospedagem: ${formatarMoeda(conta.hospedagem)}<br>Consumo: ${formatarMoeda(conta.consumo)}<br>Total pago/confirmado: ${formatarMoeda(totalCobrado)}<br>Crédito para a estadia: ${formatarMoeda(conta.pago)}${taxasRepassadas > 0 ? `<br>Taxas de cartão repassadas: ${formatarMoeda(taxasRepassadas)}` : ""}</p>
                         <strong>Saldo: ${formatarMoeda(conta.saldo)}</strong>
                     </article>`;
                 }).join("")
                 : '<p class="muted-text">Nenhuma estadia vinculada à sua conta.</p>';
         }
+    }
+}
+
+function converterDataBanco(valor) {
+    if (!valor) return null;
+    const data = new Date(String(valor).replace(" ", "T"));
+    return Number.isNaN(data.getTime()) ? null : data;
+}
+
+function formatarDataEstadia(valor) {
+    const data = String(valor || "").slice(0, 10);
+    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
+    return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : "data não informada";
+}
+
+function promocaoValidaNaData(quarto, data) {
+    if (!quarto || Number(quarto.promocao_ativa) !== 1 || !data || Number.isNaN(data.getTime())) {
+        return false;
+    }
+    const inicio = converterDataBanco(quarto.promocao_inicio_em);
+    const fim = converterDataBanco(quarto.promocao_fim_em);
+    return (!inicio || data >= inicio) && (!fim || data <= fim);
+}
+
+function promocaoExibivel(quarto) {
+    if (!quarto || Number(quarto.promocao_ativa) !== 1) return false;
+    const fim = converterDataBanco(quarto.promocao_fim_em);
+    return !fim || fim >= new Date();
+}
+
+function textoCondicoesPromocao(quarto) {
+    const dataInicio = converterDataBanco(quarto.promocao_inicio_em);
+    const programada = dataInicio && dataInicio > new Date();
+    const inicio = quarto.promocao_inicio_em
+        ? `${programada ? "Início previsto" : "Início"}: ${formatarDataPromocao(quarto.promocao_inicio_em)}.`
+        : "";
+    const fim = quarto.promocao_fim_em ? `Término: ${formatarDataPromocao(quarto.promocao_fim_em)}.` : "";
+    return [inicio, fim, quarto.promocao_condicoes || ""].filter(Boolean).join(" ");
+}
+
+function precoComPromocao(quarto) {
+    const original = Number(quarto?.preco_periodo || 0);
+    const valor = Number(quarto?.promocao_valor || 0);
+    const desconto = original * Math.min(100, Math.max(0, valor)) / 100;
+    return Math.max(0, Math.round((original - desconto) * 100) / 100);
+}
+
+function rotuloPromocao(quarto) {
+    return `${Number(quarto?.promocao_valor)}% OFF`;
+}
+
+function formatarDataPromocao(valor) {
+    const data = converterDataBanco(valor);
+    return data ? data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+}
+
+async function solicitarConfiguracao(recurso, opcoes = {}) {
+    const { id, ...requestOptions } = opcoes;
+    return solicitarAPI(`../api/configuracoes.php?recurso=${encodeURIComponent(recurso)}${id ? `&id=${encodeURIComponent(id)}` : ""}`, requestOptions);
+}
+
+function limparFormularioPromocao(formulario) {
+    formulario.reset();
+    delete formulario.dataset.recordId;
+    selecionar("#promotionFormTitle").textContent = "Nova promoção";
+    selecionar("#promotionCancelEdit").hidden = true;
+    const ativo = selecionar("#promotionActive");
+    if (ativo) ativo.checked = true;
+}
+
+function desenharPromocoesAdmin(promocoes) {
+    const tbody = selecionar("#promotionsTable");
+    if (!tbody) return;
+    Sahara.dadosPainel.promocoes = promocoes;
+    const statusPromocao = (promocao) => {
+        if (Number(promocao.ativa) !== 1) return "Inativa";
+        const agora = new Date();
+        const inicio = converterDataBanco(promocao.inicio_em);
+        const fim = converterDataBanco(promocao.fim_em);
+        if (inicio && agora < inicio) return "Programada";
+        if (fim && agora > fim) return "Expirada";
+        return "Ativa";
+    };
+    tbody.innerHTML = promocoes.length
+        ? promocoes.map((promocao) => {
+            const desconto = `${Number(promocao.valor)}%`;
+            const precoPromocional = Math.max(
+                0,
+                Number(promocao.preco_original) * (1 - Number(promocao.valor) / 100)
+            );
+            const quando = [promocao.inicio_em && `De ${formatarDataPromocao(promocao.inicio_em)}`, promocao.fim_em && `até ${formatarDataPromocao(promocao.fim_em)}`].filter(Boolean).join(" ");
+            const status = statusPromocao(promocao);
+            return criarLinhaTabela([
+                `${escaparHTML(promocao.quarto_nome)} (${escaparHTML(promocao.quarto_numero)})`,
+                formatarMoeda(promocao.preco_original),
+                escaparHTML(desconto),
+                formatarMoeda(precoPromocional),
+                escaparHTML(quando || "Sem prazo definido"),
+                Number(promocao.cumulativa) === 1 ? "Sim" : "Não",
+                escaparHTML(status),
+                `<button type="button" class="btn btn-secondary btn-small" data-edit-promotion="${Number(promocao.id)}">Editar</button>
+                 ${Number(promocao.ativa) === 1
+                    ? `<button type="button" class="btn btn-secondary btn-small" data-disable-promotion="${Number(promocao.id)}">Desativar</button>`
+                    : ""}`
+            ]);
+        }).join("")
+        : '<tr><td colspan="8" class="empty-state">Nenhuma promoção cadastrada.</td></tr>';
+}
+
+async function carregarConfiguracoesAdmin() {
+    const formularioPromocao = selecionar("#promotionForm");
+    const formularioInfo = selecionar("#motelInfoForm");
+    const formularioComercial = selecionar("#commercialSettingsForm");
+    if (!formularioPromocao && !formularioInfo && !formularioComercial) return;
+
+    if (formularioPromocao && formularioPromocao.dataset.handlers !== "true") {
+        formularioPromocao.dataset.handlers = "true";
+        const valor = selecionar("#promotionValue");
+        const quarto = selecionar("#promotionRoom");
+        const atualizarLimiteDesconto = () => {
+        valor.max = "100";
+        valor.setCustomValidity("");
+        };
+        quarto.addEventListener("change", atualizarLimiteDesconto);
+        formularioPromocao.addEventListener("reset", () => {
+            window.setTimeout(atualizarLimiteDesconto, 0);
+        });
+        atualizarLimiteDesconto();
+        formularioPromocao.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+            const dados = Object.fromEntries(new FormData(formularioPromocao).entries());
+            dados.tipo = "percentual";
+            dados.ativa = selecionar("#promotionActive").checked ? 1 : 0;
+            dados.cumulativa = selecionar("#promotionStackable").checked ? 1 : 0;
+            dados.inicio_em = dados.inicio_em || null;
+            dados.fim_em = dados.fim_em || null;
+            const registroId = formularioPromocao.dataset.recordId;
+            try {
+                if (dados.tipo === "percentual" && Number(dados.valor) > 100) {
+                    throw new Error("O desconto percentual não pode ultrapassar 100%.");
+                }
+                const resposta = await solicitarConfiguracao("promocoes", {
+                    method: registroId ? "PUT" : "POST",
+                    ...(registroId ? { id: registroId } : {}),
+                    body: JSON.stringify(dados)
+                });
+                mostrarMensagem(selecionar("#promotionMessage"), resposta.mensagem, true);
+                limparFormularioPromocao(formularioPromocao);
+                await carregarDadosPainel();
+            } catch (erro) {
+                mostrarMensagem(selecionar("#promotionMessage"), erro.message);
+            }
+        });
+        selecionar("#promotionCancelEdit")?.addEventListener("click", () => limparFormularioPromocao(formularioPromocao));
+        selecionar("#promotionsTable")?.addEventListener("click", async (evento) => {
+            const editar = evento.target.closest("[data-edit-promotion]");
+            const desativar = evento.target.closest("[data-disable-promotion]");
+            const itemId = editar?.dataset.editPromotion || desativar?.dataset.disablePromotion;
+            const item = (Sahara.dadosPainel.promocoes || []).find((promo) => Number(promo.id) === Number(itemId));
+            if (!item) return;
+            if (editar) {
+                formularioPromocao.dataset.recordId = String(item.id);
+                selecionar("#promotionFormTitle").textContent = `Editar promoção da suíte ${item.quarto_nome}`;
+                selecionar("#promotionRoom").value = String(item.quarto_id);
+                selecionar("#promotionValue").value = item.valor;
+                atualizarLimiteDesconto();
+                selecionar("#promotionStart").value = dataParaInputLocal(item.inicio_em);
+                selecionar("#promotionEnd").value = dataParaInputLocal(item.fim_em);
+                selecionar("#promotionActive").checked = Number(item.ativa) === 1;
+                selecionar("#promotionStackable").checked = Number(item.cumulativa) === 1;
+                selecionar("#promotionConditions").value = item.condicoes || "";
+                selecionar("#promotionCancelEdit").hidden = false;
+                formularioPromocao.scrollIntoView({ behavior: "smooth", block: "start" });
+                return;
+            }
+            if (!window.confirm("Desativar esta promoção? O preço original será mantido.")) return;
+            try {
+                await solicitarConfiguracao("promocoes", { method: "DELETE", id: item.id });
+                await carregarDadosPainel();
+            } catch (erro) {
+                mostrarMensagem(selecionar("#promotionListMessage"), erro.message);
+            }
+        });
+    }
+
+    if (formularioInfo && formularioInfo.dataset.handlers !== "true") {
+        formularioInfo.dataset.handlers = "true";
+        formularioInfo.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+            const dados = Object.fromEntries(new FormData(formularioInfo).entries());
+            dados.horario_confirmado = selecionar("#infoHoursConfirmed").checked ? 1 : 0;
+            try {
+                const resposta = await solicitarConfiguracao("informacoes", {
+                    method: "PUT",
+                    body: JSON.stringify(dados)
+                });
+                mostrarMensagem(selecionar("#motelInfoMessage"), resposta.mensagem, true);
+            } catch (erro) {
+                mostrarMensagem(selecionar("#motelInfoMessage"), erro.message);
+            }
+        });
+    }
+
+    if (formularioComercial && formularioComercial.dataset.handlers !== "true") {
+        formularioComercial.dataset.handlers = "true";
+        formularioComercial.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+            const dados = Object.fromEntries(new FormData(formularioComercial).entries());
+            const metodos = [...formularioComercial.querySelectorAll('input[name="metodos_elegiveis"]:checked')].map((item) => item.value);
+            const taxas = [...selecionarTodos("[data-fee-id]")].map((linha) => ({
+                id: Number(linha.dataset.feeId),
+                percentual: linha.querySelector('[data-fee-field="percentual"]').value,
+                tarifa_fixa: linha.querySelector('[data-fee-field="tarifa_fixa"]').value,
+                ativa: linha.querySelector('[data-fee-field="ativa"]').checked ? 1 : 0,
+                repassar_cliente: linha.querySelector('[data-fee-field="repassar_cliente"]').checked ? 1 : 0,
+                condicoes: linha.querySelector('[data-fee-field="condicoes"]').value
+            }));
+            try {
+                const resposta = await solicitarConfiguracao("comercial", {
+                    method: "PUT",
+                    body: JSON.stringify({
+                        desconto: {
+                            ativo: selecionar("#cashDiscountActive").checked ? 1 : 0,
+                            tipo: selecionar("#cashDiscountType").value,
+                            valor: dados.valor,
+                            inicio_em: dados.inicio_em || null,
+                            fim_em: dados.fim_em || null,
+                            cumulativo: selecionar("#cashDiscountStackable").checked ? 1 : 0,
+                            metodos_elegiveis: metodos,
+                            condicoes: dados.condicoes || ""
+                        },
+                        taxas
+                    })
+                });
+                Sahara.dadosPainel.configuracaoComercial = {
+                    ...(Sahara.dadosPainel.configuracaoComercial || {}),
+                    taxas: taxas.map((taxa) => ({
+                        ...taxa,
+                        percentual: Number(taxa.percentual),
+                        tarifa_fixa: Number(taxa.tarifa_fixa),
+                        ativa: Number(taxa.ativa),
+                        repassar_cliente: Number(taxa.repassar_cliente)
+                    })),
+                    comercial: {
+                        desconto_vista_ativo: selecionar("#cashDiscountActive").checked ? 1 : 0,
+                        desconto_vista_tipo: selecionar("#cashDiscountType").value,
+                        desconto_vista_valor: dados.valor,
+                        inicio_em: dados.inicio_em || null,
+                        fim_em: dados.fim_em || null,
+                        desconto_vista_cumulativo: selecionar("#cashDiscountStackable").checked ? 1 : 0,
+                        metodos_elegiveis: metodos.join(","),
+                        condicoes: dados.condicoes || ""
+                    }
+                };
+                atualizarFormularioPagamento();
+                mostrarMensagem(selecionar("#commercialSettingsMessage"), resposta.mensagem, true);
+            } catch (erro) {
+                mostrarMensagem(selecionar("#commercialSettingsMessage"), erro.message);
+            }
+        });
+    }
+
+    try {
+        if (formularioPromocao) {
+            const promocoes = await solicitarConfiguracao("promocoes");
+            const quartos = Sahara.dadosPainel.quartos || [];
+            const select = selecionar("#promotionRoom");
+            if (select && select.options.length <= 1) {
+                select.innerHTML = '<option value="">Selecione uma suíte</option>' +
+                    quartos.map((room) => `<option value="${Number(room.id)}">${escaparHTML(room.nome)} (${escaparHTML(room.numero)}) — ${formatarMoeda(room.preco_periodo)}</option>`).join("");
+            }
+            desenharPromocoesAdmin(promocoes.dados || []);
+        }
+        if (formularioInfo && formularioInfo.dataset.loaded !== "true") {
+            const resultado = await solicitarConfiguracao("informacoes");
+            const dados = resultado.dados || {};
+            [...formularioInfo.elements].forEach((campo) => {
+                if (campo.name && Object.prototype.hasOwnProperty.call(dados, campo.name)) {
+                    if (campo.type === "checkbox") {
+                        campo.checked = Number(dados[campo.name]) === 1;
+                    } else {
+                        campo.value = dados[campo.name] ?? "";
+                    }
+                }
+            });
+            formularioInfo.dataset.loaded = "true";
+        }
+        if (formularioComercial && formularioComercial.dataset.loaded !== "true") {
+            const resultado = await solicitarConfiguracao("comercial");
+            Sahara.dadosPainel.configuracaoComercial = resultado.dados;
+            const comercial = resultado.dados.comercial || {};
+            selecionar("#cashDiscountActive").checked = Number(comercial.desconto_vista_ativo) === 1;
+            selecionar("#cashDiscountType").value = comercial.desconto_vista_tipo || "percentual";
+            selecionar("#cashDiscountValue").value = comercial.desconto_vista_valor || "5.00";
+            selecionar("#cashDiscountStart").value = dataParaInputLocal(comercial.inicio_em);
+            selecionar("#cashDiscountEnd").value = dataParaInputLocal(comercial.fim_em);
+            selecionar("#cashDiscountStackable").checked = Number(comercial.desconto_vista_cumulativo) === 1;
+            const elegiveis = String(comercial.metodos_elegiveis || "pix").split(",");
+            formularioComercial.querySelectorAll('input[name="metodos_elegiveis"]').forEach((checkbox) => {
+                checkbox.checked = elegiveis.includes(checkbox.value);
+            });
+            const corpo = selecionar("#paymentFeesTable");
+            corpo.innerHTML = (resultado.dados.taxas || []).map((taxa) => `
+                <tr data-fee-id="${Number(taxa.id)}">
+                    <td>${escaparHTML(taxa.metodo)}${Number(taxa.prazo_recebimento_dias) ? ` · ${Number(taxa.prazo_recebimento_dias)} dias` : " · imediato"}</td>
+                    <td><input class="form-control config-table-input" data-fee-field="percentual" type="number" min="0" max="100" step="0.0001" value="${Number(taxa.percentual)}" aria-label="Percentual da taxa ${escaparHTML(taxa.metodo)}"></td>
+                    <td><input class="form-control config-table-input" data-fee-field="tarifa_fixa" type="number" min="0" step="0.01" value="${Number(taxa.tarifa_fixa)}" aria-label="Tarifa fixa ${escaparHTML(taxa.metodo)}"></td>
+                    <td><input type="checkbox" data-fee-field="ativa" ${Number(taxa.ativa) === 1 ? "checked" : ""} aria-label="Ativar referência de taxa"></td>
+                    <td><input type="checkbox" data-fee-field="repassar_cliente" ${Number(taxa.repassar_cliente) === 1 ? "checked" : ""} aria-label="Configurar repasse da taxa"></td>
+                    <td><input class="form-control config-table-input" data-fee-field="condicoes" maxlength="500" value="${escaparHTML(taxa.condicoes || "")}" aria-label="Condições da taxa"></td>
+                </tr>`).join("");
+            formularioComercial.dataset.loaded = "true";
+        }
+    } catch (erro) {
+        const destino = selecionar("#promotionListMessage, #motelInfoMessage, #commercialSettingsMessage");
+        if (destino) mostrarMensagem(destino, erro.message);
+        else notificar(erro.message, "aviso");
+    }
+}
+
+function dataParaInputLocal(valor) {
+    const data = converterDataBanco(valor);
+    if (!data) return "";
+    const formato = (numero) => String(numero).padStart(2, "0");
+    return `${data.getFullYear()}-${formato(data.getMonth() + 1)}-${formato(data.getDate())}T${formato(data.getHours())}:${formato(data.getMinutes())}`;
+}
+
+function criarLinkExterno(rotulo, url, classe = "btn btn-secondary") {
+    try {
+        const endereco = new URL(url);
+        if (endereco.protocol !== "https:") return null;
+        const link = document.createElement("a");
+        link.className = classe;
+        link.href = endereco.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = rotulo;
+        return link;
+    } catch {
+        return null;
+    }
+}
+
+async function inicializarPaginaSobre() {
+    const area = selecionar("#publicInfoContent");
+    if (!area) return;
+    try {
+        const resposta = await solicitarAPI("api/public.php", { headers: {} });
+        const dados = resposta.dados;
+        selecionar("#publicInfoName").textContent = dados.nome || "Motel Sahara";
+        selecionar("#publicInfoDescription").textContent =
+            dados.descricao || "A apresentação institucional ainda não foi cadastrada.";
+        selecionar("#publicInfoExtra").textContent = dados.outras_informacoes || "";
+        const enderecoCompleto = [
+            dados.endereco,
+            dados.bairro,
+            [dados.cidade, dados.estado].filter(Boolean).join(" - ")
+        ].filter(Boolean).join(" · ");
+        selecionar("#publicInfoAddress").textContent =
+            enderecoCompleto || "O endereço ainda não foi informado pelo estabelecimento.";
+        selecionar("#publicInfoReference").textContent = dados.referencia ? `Referência: ${dados.referencia}` : "";
+        const cardHorario = selecionar("#publicHoursCard");
+        const horarioConfirmado = Number(dados.horario_confirmado) === 1
+            && String(dados.horario_atendimento || "").trim() !== "";
+        if (horarioConfirmado) {
+            const horario = String(dados.horario_atendimento).trim();
+            const partesHorario = horario.split(/\s*(?:—|–|\|)\s*/, 2);
+            const diasHorario = selecionar("#publicInfoHoursDays");
+            if (partesHorario.length === 2) {
+                diasHorario.hidden = false;
+                diasHorario.textContent = partesHorario[0];
+                selecionar("#publicInfoHours").textContent = partesHorario[1];
+            } else {
+                diasHorario.hidden = true;
+                selecionar("#publicInfoHours").textContent = horario;
+            }
+            cardHorario.hidden = false;
+        }
+        const mapaAcoes = selecionar("#publicMapActions");
+        const destinoRota = [dados.endereco, dados.bairro, dados.cidade, dados.estado]
+            .filter(Boolean)
+            .join(", ");
+        const destinoMapa = dados.google_maps_url || (destinoRota
+            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinoRota)}`
+            : "");
+        if (destinoMapa) {
+            const link = criarLinkExterno(
+                dados.google_maps_url ? "Abrir localização no Google Maps" : "Ver localização",
+                destinoMapa
+            );
+            if (link) {
+                mapaAcoes.append(link);
+            }
+        }
+        if (destinoRota) {
+            const rota = criarLinkExterno(
+                "Obter rotas",
+                `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinoRota)}`
+            );
+            if (rota) mapaAcoes.append(rota);
+        }
+        if (!mapaAcoes.childElementCount) {
+            mapaAcoes.textContent = "Mapa e rotas ainda não foram cadastrados.";
+        }
+        if (destinoRota) {
+            const frame = selecionar("#publicMapFrame");
+            frame.src = `https://maps.google.com/maps?q=${encodeURIComponent(destinoRota)}&output=embed`;
+            frame.hidden = false;
+        }
+        const contatos = selecionar("#publicContactList");
+        const telefone = String(dados.telefone || "");
+        const telefoneDigitos = telefone.replace(/\D/g, "");
+        if (telefoneDigitos.length >= 8 && telefoneDigitos.length <= 15) {
+            const link = document.createElement("a");
+            link.className = "btn btn-secondary";
+            link.href = `tel:${telefone.replace(/[^\d+]/g, "")}`;
+            link.textContent = `Telefone: ${telefone}`;
+            contatos.append(link);
+        }
+        const whatsapp = String(dados.whatsapp || "").replace(/\D/g, "");
+        if (whatsapp.length >= 10 && whatsapp.length <= 15) {
+            const link = criarLinkExterno("Conversar pelo WhatsApp", `https://wa.me/${whatsapp}`);
+            if (link) contatos.append(link);
+        }
+        if (dados.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) {
+            const link = document.createElement("a");
+            link.className = "btn btn-secondary";
+            link.href = `mailto:${dados.email}`;
+            link.textContent = `E-mail: ${dados.email}`;
+            contatos.append(link);
+        }
+        if (!contatos.childElementCount) {
+            contatos.textContent = "Os dados de contato ainda não foram cadastrados.";
+        }
+        const redes = [
+            ["Instagram", dados.instagram_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="1.2" fill="currentColor"/></svg>'],
+            ["Facebook", dados.facebook_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.6 1.6-1.6h1.7V3.8c-.3 0-1.4-.1-2.7-.1-2.7 0-4.5 1.6-4.5 4.7V10H6.7v3h2.9v8h3.9z" fill="currentColor"/></svg>'],
+            ["TikTok", dados.tiktok_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3h-3.2v11.2a2.5 2.5 0 1 1-2.5-2.5c.4 0 .8.1 1.1.3V8.7a6 6 0 1 0 4.6 5.8V9a8.6 8.6 0 0 0 5 1.6V7.4a5.4 5.4 0 0 1-5-4.4z" fill="currentColor"/></svg>']
+        ];
+        const listaRedes = selecionar("#publicSocialLinks");
+        redes.forEach(([nome, url, icone]) => {
+            const link = criarLinkExterno(nome, url, "social-icon-link");
+            if (link) {
+                link.setAttribute("aria-label", nome);
+                link.title = nome;
+                link.innerHTML = icone;
+                listaRedes.append(link);
+            }
+        });
+        selecionar("#publicSocialSection").hidden = listaRedes.childElementCount === 0;
+        selecionar("#publicInfoLoading").hidden = true;
+        area.hidden = false;
+    } catch (erro) {
+        selecionar("#publicInfoLoading").hidden = true;
+        const destino = selecionar("#publicInfoError");
+        destino.textContent = `${erro.message} A equipe pode cadastrar os dados na área administrativa.`;
+        destino.hidden = false;
     }
 }
 
@@ -2915,6 +3699,7 @@ function inicializarSahara() {
 
     inicializarAcessibilidade();
     inicializarTema();
+    inicializarPaginaSobre();
     inicializarIntegracaoAPI().catch((erro) => {
         console.error("Motel Sahara: falha ao conectar com a API.", erro);
     });

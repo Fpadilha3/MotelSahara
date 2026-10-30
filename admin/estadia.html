@@ -16,9 +16,11 @@
         <nav class="sidebar-nav" aria-label="Menu administrativo">
             <a class="nav-link" href="dashboard.html"><span>⌂</span> Visão geral</a>
             <a class="nav-link" href="quartos.html"><span>▦</span> Quartos e suítes</a>
-            <a class="nav-link" href="frigobar.html"><span>◇</span> Frigobar</a>
+            <a class="nav-link" href="promocoes.html"><span>%</span> Descontos e Promoções</a>
+            <a class="nav-link" href="frigobar.html"><span>◇</span> Consumo</a>
             <a class="nav-link active" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
+            <a class="nav-link" href="informacoes.html"><span>⌖</span> Informações do Motel</a>
         </nav>
         <div class="sidebar-bottom"><div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div><a href="../index.html" class="nav-link logout-link" data-logout><span>↪</span> Sair da conta</a></div>
     </aside>
@@ -54,7 +56,7 @@
         </section>
 
         <section class="panel dashboard-section">
-            <div class="section-heading"><div><span class="section-kicker">REGISTRO OPERACIONAL</span><h2>Registrar uma estadia</h2></div></div>
+            <div class="section-heading"><div><span class="section-kicker">REGISTRO DE ESTADIAS</span><h2>Registrar uma estadia</h2></div></div>
             <p class="muted-text">Uma estadia registrada fica como reservada. No check-in, use o botão “Iniciar” na lista acima; isso libera o consumo do cliente. No check-out, use “Finalizar”.</p>
 
             <form id="stayForm" class="data-form" action="../api/api.php?tabela=estadias" method="POST">

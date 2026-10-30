@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Informações oficiais, localização e contato do Motel Sahara.">
+    <title>Sobre o Motel | Motel Sahara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="script.js" defer></script>
+</head>
+<body class="public-info-page">
+<header class="public-info-header">
+    <a class="brand brand-light" href="index.html"><span class="brand-symbol" aria-hidden="true">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">MOTEL BOUTIQUE</span></span></a>
+    <nav aria-label="Navegação principal"><a href="index.html">Entrar</a><a href="admin-login.html">Área administrativa</a></nav>
+</header>
+<main class="public-info-main">
+    <section class="public-info-hero" aria-labelledby="publicInfoTitle">
+        <div class="public-info-hero-copy">
+            <span class="section-kicker">MOTEL SAHARA · INFORMAÇÕES OFICIAIS</span>
+            <h1 id="publicInfoTitle">Uma experiência com identidade própria.</h1>
+            <p>Conheça o estabelecimento a partir das informações cadastradas pela administração: apresentação, localização e canais de atendimento.</p>
+            <div class="public-info-actions">
+                <a class="btn btn-primary" href="#publicLocation">Consultar localização</a>
+                <a class="btn btn-secondary" href="#publicContact">Falar com o motel</a>
+            </div>
+        </div>
+        <div class="public-info-hero-mark" aria-hidden="true"><span>✦</span></div>
+    </section>
+    <div id="publicInfoLoading" class="notice-card" role="status">Carregando informações…</div>
+    <div id="publicInfoError" class="notice-card is-error" role="alert" hidden></div>
+    <div id="publicInfoContent" hidden>
+        <div class="public-info-grid">
+            <section class="panel public-info-card public-info-presentation">
+                <span class="section-kicker">APRESENTAÇÃO</span>
+                <h2 id="publicInfoName">Motel Sahara</h2>
+                <p id="publicInfoDescription" class="public-info-copy"></p>
+                <div id="publicInfoExtra" class="public-info-extra public-info-copy"></div>
+            </section>
+            <section class="panel public-info-card public-info-contact" id="publicContact">
+                <span class="section-kicker">ATENDIMENTO</span>
+                <h2>Contato</h2>
+                <div id="publicContactList" class="public-info-actions"></div>
+            </section>
+            <section class="public-hours-card" id="publicHoursCard" aria-labelledby="publicHoursTitle" hidden>
+                <div class="public-hours-icon" aria-hidden="true">◷</div>
+                <div class="public-hours-copy">
+                    <span class="section-kicker">HORÁRIO DE FUNCIONAMENTO</span>
+                    <p id="publicInfoHoursDays" class="public-hours-days"></p>
+                    <strong id="publicInfoHours" class="public-hours-time"></strong>
+                </div>
+            </section>
+            <section class="panel public-info-card public-info-location" id="publicLocation">
+                <div class="public-info-card-heading">
+                    <div><span class="section-kicker">COMO CHEGAR</span><h2>Localização</h2></div>
+                    <span class="public-info-coordinate-mark" aria-hidden="true">⌖</span>
+                </div>
+                <p id="publicInfoAddress" class="public-info-copy"></p>
+                <p id="publicInfoReference" class="public-info-copy"></p>
+                <div class="public-info-actions" id="publicMapActions"></div>
+                <iframe id="publicMapFrame" title="Mapa de localização do Motel Sahara" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
+            </section>
+            <section class="panel public-info-card public-info-social" id="publicSocialSection" hidden>
+                <span class="section-kicker">CANAIS OFICIAIS</span>
+                <h2>Redes sociais</h2>
+                <div id="publicSocialLinks" class="public-info-actions"></div>
+            </section>
+        </div>
+    </div>
+    <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Informações oficiais mantidas pelo estabelecimento</span></footer>
+</main>
+</body>
+</html>

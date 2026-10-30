@@ -56,8 +56,12 @@ $colunas = [
         'percentual_taxa_aplicado', 'subtotal', 'registrado_por', 'observacoes'
     ],
     'pagamentos' => [
-        'estadia_id', 'codigo_transacao', 'valor', 'metodo', 'status',
-        'pago_em', 'registrado_por', 'observacoes'
+        'estadia_id', 'codigo_transacao', 'valor', 'valor_cobrado_cliente',
+        'desconto_aplicado',
+        'prazo_recebimento_dias_aplicado', 'percentual_taxa_operacional_aplicada',
+        'tarifa_fixa_operacional_aplicada', 'taxa_operacional_aplicada',
+        'taxa_repassada_cliente_aplicada',
+        'metodo', 'status', 'pago_em', 'registrado_por', 'observacoes'
     ],
     'log_admin' => [
         'usuario_id', 'acao', 'entidade', 'entidade_id', 'detalhes'
@@ -108,11 +112,241 @@ function filtrarDados(array $dados, array $permitidas): array
     return $resultado;
 }
 
+function consultarSaldoEstadia(PDO $pdo, int $estadiaId, ?int $pagamentoIgnorado = null): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, status, valor_total_previsto, valor_desconto_promocional,
+                promocao_cumulativa_aplicada
+         FROM estadias
+         WHERE id = :id
+         LIMIT 1
+         FOR UPDATE'
+    );
+    $stmt->execute(['id' => $estadiaId]);
+    $estadia = $stmt->fetch();
+    if (!$estadia) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT COALESCE(SUM(subtotal * (1 + percentual_taxa_aplicado / 100)), 0)
+         FROM consumo
+         WHERE estadia_id = :estadia_id'
+    );
+    $stmt->execute(['estadia_id' => $estadiaId]);
+    $consumo = (float) $stmt->fetchColumn();
+
+    $sqlPagamentos = "
+        SELECT COALESCE(SUM(valor), 0) AS pago,
+               COALESCE(SUM(desconto_aplicado), 0) AS desconto
+        FROM pagamentos
+        WHERE estadia_id = :estadia_id
+          AND status = 'aprovado'
+    ";
+    $params = ['estadia_id' => $estadiaId];
+    if ($pagamentoIgnorado !== null) {
+        $sqlPagamentos .= ' AND id <> :pagamento_id';
+        $params['pagamento_id'] = $pagamentoIgnorado;
+    }
+    $stmt = $pdo->prepare($sqlPagamentos);
+    $stmt->execute($params);
+    $pagamentos = $stmt->fetch();
+
+    $total = round((float) $estadia['valor_total_previsto'] + $consumo, 2);
+    $pago = round((float) $pagamentos['pago'], 2);
+    $desconto = round((float) $pagamentos['desconto'], 2);
+
+    return [
+        'estadia' => $estadia,
+        'total' => $total,
+        'consumo' => round($consumo, 2),
+        'pago' => $pago,
+        'desconto' => $desconto,
+        'saldo' => max(0, round($total - $pago - $desconto, 2))
+    ];
+}
+
+function calcularDescontoVista(PDO $pdo, array $conta, string $metodo): float
+{
+    if (
+        $conta['estadia']['status'] === 'cancelada'
+        || (float) $conta['saldo'] <= 0
+    ) {
+        return 0.0;
+    }
+
+    $config = $pdo->query(
+        'SELECT desconto_vista_ativo, desconto_vista_tipo, desconto_vista_valor,
+                desconto_vista_cumulativo, metodos_elegiveis, inicio_em, fim_em
+         FROM configuracoes_comerciais
+         WHERE id = 1'
+    )->fetch();
+    if (!$config || (int) $config['desconto_vista_ativo'] !== 1) {
+        return 0.0;
+    }
+    if (
+        (float) $conta['estadia']['valor_desconto_promocional'] > 0
+        && (
+            (int) $conta['estadia']['promocao_cumulativa_aplicada'] !== 1
+            || (int) $config['desconto_vista_cumulativo'] !== 1
+        )
+    ) {
+        return 0.0;
+    }
+
+    $metodos = array_filter(array_map('trim', explode(',', (string) $config['metodos_elegiveis'])));
+    if (!in_array($metodo, $metodos, true)) {
+        return 0.0;
+    }
+
+    $agora = new DateTimeImmutable();
+    if (
+        ($config['inicio_em'] !== null && $agora < new DateTimeImmutable($config['inicio_em']))
+        || ($config['fim_em'] !== null && $agora > new DateTimeImmutable($config['fim_em']))
+    ) {
+        return 0.0;
+    }
+
+    $saldo = (float) $conta['saldo'];
+    $valor = (float) $config['desconto_vista_valor'];
+    $desconto = $config['desconto_vista_tipo'] === 'percentual'
+        ? round($saldo * $valor / 100, 2)
+        : min($saldo, $valor);
+
+    return min($saldo, max(0, $desconto));
+}
+
+function consultarTaxaOperacional(
+    PDO $pdo,
+    string $metodo,
+    int $prazoRecebimento,
+    float $valorBase
+): array {
+    $stmt = $pdo->prepare(
+        'SELECT percentual, tarifa_fixa, ativa, repassar_cliente
+         FROM taxas_pagamento
+         WHERE metodo = :metodo
+           AND prazo_recebimento_dias = :prazo
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'metodo' => $metodo,
+        'prazo' => $prazoRecebimento
+    ]);
+    $taxa = $stmt->fetch();
+    if (!$taxa) {
+        return [
+            'prazo' => $prazoRecebimento,
+            'percentual' => 0.0,
+            'tarifa_fixa' => 0.0,
+            'taxa' => 0.0,
+            'repassar_cliente' => false
+        ];
+    }
+
+    $ativa = (int) $taxa['ativa'] === 1;
+    $percentual = $ativa ? (float) $taxa['percentual'] : 0.0;
+    $tarifaFixa = $ativa ? (float) $taxa['tarifa_fixa'] : 0.0;
+
+    return [
+        'prazo' => $prazoRecebimento,
+        'percentual' => $percentual,
+        'tarifa_fixa' => $tarifaFixa,
+        'taxa' => round($valorBase * $percentual / 100 + $tarifaFixa, 2),
+        'repassar_cliente' => $ativa && (int) $taxa['repassar_cliente'] === 1
+    ];
+}
+
+function separarValorPagamento(float $totalCobrado, array $taxa): array
+{
+    $repassarCliente = $taxa['repassar_cliente'];
+    if (!$repassarCliente) {
+        return [
+            'valor' => round($totalCobrado, 2),
+            'taxa_cobrada' => 0.0,
+            'total_cobrado' => round($totalCobrado, 2)
+        ];
+    }
+
+    $percentual = (float) $taxa['percentual'];
+    $tarifaFixa = (float) $taxa['tarifa_fixa'];
+    $estimativaBase = round(
+        (round($totalCobrado, 2) - $tarifaFixa) / (1 + $percentual / 100),
+        2
+    );
+    $centavosEstimados = (int) round($estimativaBase * 100);
+    for ($ajuste = -5; $ajuste <= 5; $ajuste++) {
+        $valorBase = ($centavosEstimados + $ajuste) / 100;
+        if ($valorBase <= 0) {
+            continue;
+        }
+        $taxaCalculada = round($valorBase * $percentual / 100 + $tarifaFixa, 2);
+        $totalCalculado = round($valorBase + $taxaCalculada, 2);
+        if ($totalCalculado === round($totalCobrado, 2)) {
+            return [
+                'valor' => $valorBase,
+                'taxa_cobrada' => $taxaCalculada,
+                'total_cobrado' => $totalCalculado
+            ];
+        }
+    }
+
+    responderJson([
+        'sucesso' => false,
+        'mensagem' => 'O total informado não corresponde à taxa configurada. Atualize o valor antes de registrar.'
+    ], 422);
+}
+
 try {
     /*
      * LEITURA
      */
     if ($metodo === 'GET') {
+        if ($tabela === 'estadias' && $acao === 'pagamentos_pendentes') {
+            if ($usuario['tipo'] !== 'admin') {
+                responderJson([
+                    'sucesso' => false,
+                    'mensagem' => 'Acesso permitido somente ao administrador.'
+                ], 403);
+            }
+
+            $stmt = $pdo->query(
+                "SELECT e.*,
+                        COALESCE(c.total, 0) AS consumo_total,
+                        COALESCE(p.valor_pago, 0) AS pagamentos_confirmados,
+                        COALESCE(p.descontos_aplicados, 0) AS descontos_aplicados,
+                        ROUND(e.valor_total_previsto + COALESCE(c.total, 0)
+                            - COALESCE(p.valor_pago, 0)
+                            - COALESCE(p.descontos_aplicados, 0), 2) AS saldo_pendente
+                 FROM estadias e
+                 LEFT JOIN (
+                    SELECT estadia_id,
+                           SUM(subtotal * (1 + percentual_taxa_aplicado / 100)) AS total
+                    FROM consumo
+                    GROUP BY estadia_id
+                 ) c ON c.estadia_id = e.id
+                 LEFT JOIN (
+                    SELECT estadia_id, SUM(valor) AS valor_pago,
+                           SUM(desconto_aplicado) AS descontos_aplicados
+                    FROM pagamentos
+                    WHERE status = 'aprovado'
+                    GROUP BY estadia_id
+                 ) p ON p.estadia_id = e.id
+                 WHERE e.status <> 'cancelada'
+                   AND ROUND(e.valor_total_previsto + COALESCE(c.total, 0)
+                       - COALESCE(p.valor_pago, 0)
+                       - COALESCE(p.descontos_aplicados, 0), 2) > 0
+                 ORDER BY e.id DESC
+                 LIMIT 500"
+            );
+            $dados = $stmt->fetchAll();
+            responderJson([
+                'sucesso' => true,
+                'quantidade' => count($dados),
+                'dados' => $dados
+            ]);
+        }
+
         if ($tabela === 'log_admin' && $usuario['tipo'] !== 'admin') {
             responderJson([
                 'sucesso' => false,
@@ -135,7 +369,7 @@ try {
                     ], 403);
                 }
             } elseif ($tabela === 'quartos') {
-                $where[] = "status = 'disponivel'";
+                $where[] = "q.status = 'disponivel'";
             } elseif ($tabela === 'frigobar') {
                 $where[] = 'ativo = 1';
             } elseif (in_array($tabela, ['estadias', 'consumo', 'pagamentos'], true)) {
@@ -165,17 +399,26 @@ try {
         }
 
         if ($id !== null) {
-            $where[] = 'id = :id';
+            $where[] = $tabela === 'quartos' ? 'q.id = :id' : 'id = :id';
             $params['id'] = $id;
         }
 
-        $sql = 'SELECT * FROM `' . $tabela . '`';
+        $sql = $tabela === 'quartos'
+            ? "SELECT q.*, p.id AS promocao_id, p.tipo AS promocao_tipo,
+                      p.valor AS promocao_valor, p.inicio_em AS promocao_inicio_em,
+                      p.fim_em AS promocao_fim_em, p.cumulativa AS promocao_cumulativa,
+                      p.condicoes AS promocao_condicoes, p.ativa AS promocao_ativa
+               FROM quartos q
+               LEFT JOIN promocoes p ON p.quarto_id = q.id"
+            : 'SELECT * FROM `' . $tabela . '`';
 
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
 
-        $sql .= ' ORDER BY id DESC LIMIT 500';
+        $sql .= $tabela === 'quartos'
+            ? ' ORDER BY q.id DESC LIMIT 500'
+            : ' ORDER BY id DESC LIMIT 500';
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -563,6 +806,36 @@ try {
         }
 
         $precoPeriodo = (float) $quarto['preco_periodo'];
+        $precoPeriodoOriginal = $precoPeriodo;
+        $valorDescontoPromocional = 0.0;
+        $stmt = $pdo->prepare(
+            'SELECT tipo, valor, cumulativa
+             FROM promocoes
+             WHERE quarto_id = :quarto_id
+               AND ativa = 1
+               AND (inicio_em IS NULL OR inicio_em <= :inicio_em)
+               AND (fim_em IS NULL OR fim_em >= :vigencia_inicio)
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([
+            'quarto_id' => $quartoId,
+            'inicio_em' => $inicio->format('Y-m-d H:i:s'),
+            'vigencia_inicio' => $inicio->format('Y-m-d H:i:s')
+        ]);
+        $promocao = $stmt->fetch();
+        $promocaoCumulativaAplicada = $promocao
+            ? (int) $promocao['cumulativa']
+            : 0;
+        if ($promocao) {
+            $valorDescontoPromocional = $promocao['tipo'] === 'percentual'
+                ? round($precoPeriodoOriginal * (float) $promocao['valor'] / 100, 2)
+                : min($precoPeriodoOriginal, (float) $promocao['valor']);
+            $precoPeriodo = max(0, round(
+                $precoPeriodoOriginal - $valorDescontoPromocional,
+                2
+            ));
+        }
         $precoPessoaExtra = (float) $quarto['preco_pessoa_extra'];
         $precoTempo = round(
             $precoPeriodo * $duracaoMinutos / $duracaoPeriodo,
@@ -576,6 +849,10 @@ try {
             2
         );
         $valorTotalPrevisto = round($subtotalPrevisto + $valorTaxa, 2);
+        $valorDescontoPromocionalAplicado = round(
+            $valorDescontoPromocional * $duracaoMinutos / $duracaoPeriodo,
+            2
+        );
 
         $stmt = $pdo->prepare('SELECT id FROM clientes WHERE id = :id LIMIT 1');
         $stmt->execute(['id' => $clienteId]);
@@ -615,13 +892,15 @@ try {
             'INSERT INTO estadias
                 (codigo, cliente_id, quarto_id, status, entrada_prevista,
                  saida_prevista, quantidade_pessoas, pessoas_incluidas_aplicado,
-                 preco_periodo_aplicado, preco_hora_extra_aplicado,
+                 preco_periodo_aplicado, preco_periodo_original_aplicado,
+                 valor_desconto_promocional, promocao_cumulativa_aplicada, preco_hora_extra_aplicado,
                  preco_pessoa_extra_aplicado, percentual_taxa_aplicado,
                  valor_total_previsto, observacoes)
              VALUES
                 (:codigo, :cliente_id, :quarto_id, "reservada", :entrada_prevista,
                  :saida_prevista, :quantidade_pessoas, :pessoas_incluidas,
-                 :preco_periodo, 0, :preco_pessoa_extra,
+                 :preco_periodo, :preco_periodo_original,
+                 :valor_desconto_promocional, :promocao_cumulativa, 0, :preco_pessoa_extra,
                  :percentual_taxa, :valor_total_previsto, :observacoes)'
         );
         $stmt->execute([
@@ -633,6 +912,9 @@ try {
             'quantidade_pessoas' => $pessoas,
             'pessoas_incluidas' => $quarto['capacidade_pessoas'],
             'preco_periodo' => $precoPeriodo,
+            'preco_periodo_original' => $precoPeriodoOriginal,
+            'valor_desconto_promocional' => $valorDescontoPromocionalAplicado,
+            'promocao_cumulativa' => $promocaoCumulativaAplicada,
             'preco_pessoa_extra' => $precoPessoaExtra,
             'percentual_taxa' => $quarto['percentual_taxa_servico'],
             'valor_total_previsto' => $valorTotalPrevisto,
@@ -657,7 +939,8 @@ try {
             'mensagem' => 'Estadia registrada.',
             'id' => $novoId,
             'codigo' => $codigo,
-            'valor_total_previsto' => $valorTotalPrevisto
+            'valor_total_previsto' => $valorTotalPrevisto,
+            'valor_desconto_promocional' => $valorDescontoPromocionalAplicado
         ], 201);
     }
 
@@ -723,6 +1006,21 @@ try {
             ['status', 'entrada_real', 'saida_real']
         ));
     }
+    if ($tabela === 'pagamentos' && $metodo === 'PUT') {
+        $permitidas = array_values(array_diff(
+            $permitidas,
+            [
+                'estadia_id',
+                'desconto_aplicado',
+                'valor_cobrado_cliente',
+                'prazo_recebimento_dias_aplicado',
+                'percentual_taxa_operacional_aplicada',
+                'tarifa_fixa_operacional_aplicada',
+                'taxa_operacional_aplicada',
+                'taxa_repassada_cliente_aplicada'
+            ]
+        ));
+    }
 
     // Campos sensíveis não podem ser manipulados livremente pelo cadastro.
     if ($tabela === 'usuarios') {
@@ -734,6 +1032,32 @@ try {
     }
 
     $dados = filtrarDados($entrada, $permitidas);
+
+    if (
+        $tabela === 'frigobar'
+        && in_array($metodo, ['POST', 'PUT'], true)
+        && array_key_exists('imagem_url', $dados)
+    ) {
+        $imagemEntrada = $dados['imagem_url'];
+        if (!is_scalar($imagemEntrada)) {
+            responderJson(['sucesso' => false, 'mensagem' => 'Informe uma URL de imagem válida.'], 422);
+        }
+        $imagemUrl = trim((string) $imagemEntrada);
+        $partesImagem = $imagemUrl !== '' ? parse_url($imagemUrl) : [];
+        if (
+            mb_strlen($imagemUrl) > 500
+            || ($imagemUrl !== '' && (
+                filter_var($imagemUrl, FILTER_VALIDATE_URL) === false
+                || !in_array(strtolower((string) ($partesImagem['scheme'] ?? '')), ['http', 'https'], true)
+            ))
+        ) {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Informe uma URL HTTP ou HTTPS válida para a imagem (até 500 caracteres).'
+            ], 422);
+        }
+        $dados['imagem_url'] = $imagemUrl !== '' ? $imagemUrl : null;
+    }
 
     if ($tabela === 'quartos' && in_array($metodo, ['POST', 'PUT'], true)) {
         $capacidade = filter_var(
@@ -811,22 +1135,141 @@ try {
         }
 
         $dados['estadia_id'] = $estadiaId;
+        $prazoRecebimento = filter_var(
+            $dados['prazo_recebimento_dias_aplicado'] ?? 0,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 0, 'max_range' => 3650]]
+        );
+        if ($prazoRecebimento === false) {
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Selecione um prazo de recebimento válido.'
+            ], 422);
+        }
+        $dados['prazo_recebimento_dias_aplicado'] = $prazoRecebimento;
         if ($dados['status'] === 'aprovado' && empty($dados['pago_em'])) {
             $dados['pago_em'] = date('Y-m-d H:i:s');
         }
     }
 
-    if ($tabela === 'pagamentos' && $metodo === 'PUT' && isset($dados['status'])) {
+    if ($tabela === 'pagamentos' && $metodo === 'PUT') {
         $statusValidos = [
             'pendente', 'aprovado', 'recusado', 'estornado', 'cancelado'
         ];
-        if (!in_array($dados['status'], $statusValidos, true)) {
-            responderJson([
-                'sucesso' => false,
-                'mensagem' => 'Informe uma situação válida para o pagamento.'
-            ], 422);
+        if ($id === null || $id < 1) {
+            responderJson(['sucesso' => false, 'mensagem' => 'Informe um pagamento válido.'], 422);
         }
-        if ($dados['status'] === 'aprovado' && empty($dados['pago_em'])) {
+
+        $pdo->beginTransaction();
+        $stmt = $pdo->prepare(
+            'SELECT id, estadia_id, valor, valor_cobrado_cliente, metodo, status,
+                    prazo_recebimento_dias_aplicado,
+                    percentual_taxa_operacional_aplicada,
+                    tarifa_fixa_operacional_aplicada,
+                    taxa_operacional_aplicada,
+                    taxa_repassada_cliente_aplicada
+             FROM pagamentos
+             WHERE id = :id
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute(['id' => $id]);
+        $pagamentoAtual = $stmt->fetch();
+        if (!$pagamentoAtual) {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'Pagamento não encontrado.'], 404);
+        }
+
+        $statusPagamento = (string) ($dados['status'] ?? $pagamentoAtual['status']);
+        $metodoPagamento = (string) ($dados['metodo'] ?? $pagamentoAtual['metodo']);
+        $valorCobrado = $dados['valor'] ?? (
+            (float) $pagamentoAtual['valor_cobrado_cliente'] > 0
+                ? $pagamentoAtual['valor_cobrado_cliente']
+                : $pagamentoAtual['valor']
+        );
+        if (
+            !in_array($statusPagamento, $statusValidos, true)
+            || !in_array($metodoPagamento, ['dinheiro', 'pix', 'credito', 'debito', 'transferencia', 'outro'], true)
+            || !is_numeric($valorCobrado)
+            || (float) $valorCobrado <= 0
+        ) {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'Confira o valor, o método e a situação do pagamento.'], 422);
+        }
+
+        $conta = consultarSaldoEstadia($pdo, (int) $pagamentoAtual['estadia_id'], (int) $id);
+        if (!$conta || $conta['estadia']['status'] === 'cancelada') {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'A estadia não está disponível para pagamentos.'], 409);
+        }
+        $valorCobrado = round((float) $valorCobrado, 2);
+        $recalcularTaxa = array_key_exists('valor', $dados)
+            || array_key_exists('metodo', $dados);
+        if ($recalcularTaxa) {
+            $taxaOperacional = consultarTaxaOperacional(
+                $pdo,
+                $metodoPagamento,
+                (int) $pagamentoAtual['prazo_recebimento_dias_aplicado'],
+                $valorCobrado
+            );
+            $valoresPagamento = separarValorPagamento($valorCobrado, $taxaOperacional);
+            $valorPagamento = $valoresPagamento['valor'];
+            $valorCobrado = $valoresPagamento['total_cobrado'];
+            $taxaOperacional['taxa'] = round(
+                $valorPagamento * $taxaOperacional['percentual'] / 100
+                    + $taxaOperacional['tarifa_fixa'],
+                2
+            );
+        } else {
+            $valorPagamento = round((float) $pagamentoAtual['valor'], 2);
+            $taxaOperacional = [
+                'prazo' => (int) $pagamentoAtual['prazo_recebimento_dias_aplicado'],
+                'percentual' => (float) $pagamentoAtual['percentual_taxa_operacional_aplicada'],
+                'tarifa_fixa' => (float) $pagamentoAtual['tarifa_fixa_operacional_aplicada'],
+                'taxa' => (float) $pagamentoAtual['taxa_operacional_aplicada'],
+                'repassar_cliente' => (int) $pagamentoAtual['taxa_repassada_cliente_aplicada'] === 1
+            ];
+        }
+        $descontoDisponivel = calcularDescontoVista($pdo, $conta, $metodoPagamento);
+        $descontoAplicado = 0.0;
+        if ($valorPagamento > $conta['saldo']) {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'O valor excede o saldo atual da estadia. Atualize os dados antes de confirmar.'], 409);
+        }
+        if ($statusPagamento === 'aprovado' && $descontoDisponivel > 0) {
+            $valorComDesconto = round($conta['saldo'] - $descontoDisponivel, 2);
+            if ($valorPagamento === round($conta['saldo'], 2)) {
+                $totalComDesconto = round(
+                    $valorComDesconto
+                    + ($taxaOperacional['repassar_cliente']
+                        ? round(
+                            $valorComDesconto * $taxaOperacional['percentual'] / 100
+                                + $taxaOperacional['tarifa_fixa'],
+                            2
+                        )
+                        : 0),
+                    2
+                );
+                $pdo->rollBack();
+                responderJson([
+                    'sucesso' => false,
+                    'mensagem' => 'Este método tem desconto à vista. O total para quitar o saldo é R$ '
+                        . number_format($totalComDesconto, 2, ',', '.') . '.'
+                ], 422);
+            }
+            if ($valorPagamento === $valorComDesconto) {
+                $descontoAplicado = $descontoDisponivel;
+            }
+        }
+        $dados['valor'] = $valorPagamento;
+        $dados['valor_cobrado_cliente'] = $valorCobrado;
+        $dados['desconto_aplicado'] = $statusPagamento === 'aprovado' ? $descontoAplicado : 0;
+        $dados['prazo_recebimento_dias_aplicado'] = $taxaOperacional['prazo'];
+        $dados['percentual_taxa_operacional_aplicada'] = $taxaOperacional['percentual'];
+        $dados['tarifa_fixa_operacional_aplicada'] = $taxaOperacional['tarifa_fixa'];
+        $dados['taxa_operacional_aplicada'] = $taxaOperacional['taxa'];
+        $dados['taxa_repassada_cliente_aplicada'] = $taxaOperacional['repassar_cliente'] ? 1 : 0;
+        if ($statusPagamento === 'aprovado' && empty($dados['pago_em'])) {
             $dados['pago_em'] = date('Y-m-d H:i:s');
         }
     }
@@ -845,6 +1288,74 @@ try {
         && $metodo === 'POST'
     ) {
         $dados['registrado_por'] = $usuario['id'];
+    }
+
+    $transacaoPagamentoAberta = $tabela === 'pagamentos'
+        && $metodo === 'PUT'
+        && $pdo->inTransaction();
+
+    if ($tabela === 'pagamentos' && $metodo === 'POST') {
+        $pdo->beginTransaction();
+        $transacaoPagamentoAberta = true;
+        $conta = consultarSaldoEstadia($pdo, (int) $dados['estadia_id']);
+        if (!$conta || $conta['estadia']['status'] === 'cancelada') {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'A estadia não está disponível para pagamentos.'], 409);
+        }
+        $valorCobrado = round((float) $dados['valor'], 2);
+        $prazoRecebimento = (int) $dados['prazo_recebimento_dias_aplicado'];
+        $taxaOperacional = consultarTaxaOperacional(
+            $pdo,
+            (string) $dados['metodo'],
+            $prazoRecebimento,
+            $valorCobrado
+        );
+        $valoresPagamento = separarValorPagamento($valorCobrado, $taxaOperacional);
+        $valorPagamento = $valoresPagamento['valor'];
+        $valorCobrado = $valoresPagamento['total_cobrado'];
+        $taxaOperacional['taxa'] = round(
+            $valorPagamento * $taxaOperacional['percentual'] / 100
+                + $taxaOperacional['tarifa_fixa'],
+            2
+        );
+        $descontoDisponivel = calcularDescontoVista($pdo, $conta, (string) $dados['metodo']);
+        $descontoAplicado = 0.0;
+        if ($valorPagamento > $conta['saldo']) {
+            $pdo->rollBack();
+            responderJson(['sucesso' => false, 'mensagem' => 'O valor excede o saldo atual da estadia. Atualize os dados antes de registrar.'], 409);
+        }
+        if ($dados['status'] === 'aprovado' && $descontoDisponivel > 0) {
+            $valorComDesconto = round($conta['saldo'] - $descontoDisponivel, 2);
+            if ($valorPagamento === round($conta['saldo'], 2)) {
+                $totalComDesconto = round(
+                    $valorComDesconto
+                    + ($taxaOperacional['repassar_cliente']
+                        ? round(
+                            $valorComDesconto * $taxaOperacional['percentual'] / 100
+                                + $taxaOperacional['tarifa_fixa'],
+                            2
+                        )
+                        : 0),
+                    2
+                );
+                $pdo->rollBack();
+                responderJson([
+                    'sucesso' => false,
+                    'mensagem' => 'Este método tem desconto à vista. O total para quitar o saldo é R$ '
+                        . number_format($totalComDesconto, 2, ',', '.') . '.'
+                ], 422);
+            }
+            if ($valorPagamento === $valorComDesconto) {
+                $descontoAplicado = $descontoDisponivel;
+            }
+        }
+        $dados['valor'] = $valorPagamento;
+        $dados['valor_cobrado_cliente'] = $valorCobrado;
+        $dados['desconto_aplicado'] = $dados['status'] === 'aprovado' ? $descontoAplicado : 0;
+        $dados['percentual_taxa_operacional_aplicada'] = $taxaOperacional['percentual'];
+        $dados['tarifa_fixa_operacional_aplicada'] = $taxaOperacional['tarifa_fixa'];
+        $dados['taxa_operacional_aplicada'] = $taxaOperacional['taxa'];
+        $dados['taxa_repassada_cliente_aplicada'] = $taxaOperacional['repassar_cliente'] ? 1 : 0;
     }
 
     /*
@@ -886,7 +1397,9 @@ try {
             . implode(', ', $marcadores)
             . ')';
 
-        $pdo->beginTransaction();
+        if (!$transacaoPagamentoAberta) {
+            $pdo->beginTransaction();
+        }
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($dados);
@@ -941,7 +1454,9 @@ try {
             . implode(', ', $set)
             . ' WHERE id = :__id';
 
-        $pdo->beginTransaction();
+        if (!$transacaoPagamentoAberta) {
+            $pdo->beginTransaction();
+        }
         $stmt = $pdo->prepare($sql);
         $stmt->execute($dados);
 
