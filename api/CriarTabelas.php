@@ -4,6 +4,55 @@ declare(strict_types=1);
 require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/resposta.php';
 
+function garantirAdministradorPadrao(PDO $pdo): void
+{
+    $nome = 'Administrador Motel Sahara';
+    $email = 'motel@gmail.com';
+    $senha = 'saharaADM2026@';
+    $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+
+    $stmt = $pdo->prepare(
+        'SELECT id FROM usuarios WHERE email = :email LIMIT 1'
+    );
+    $stmt->execute(['email' => $email]);
+    $usuarioId = $stmt->fetchColumn();
+
+    if ($usuarioId !== false) {
+        $stmt = $pdo->prepare(
+            'UPDATE usuarios
+             SET nome = :nome,
+                 email = :email,
+                 senha_hash = :senha_hash,
+                 tipo = :tipo,
+                 ativo = :ativo
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'nome' => $nome,
+            'email' => $email,
+            'senha_hash' => $senhaHash,
+            'tipo' => 'admin',
+            'ativo' => 1,
+            'id' => $usuarioId,
+        ]);
+        return;
+    }
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO usuarios
+            (nome, email, senha_hash, tipo, ativo)
+         VALUES
+            (:nome, :email, :senha_hash, :tipo, :ativo)'
+    );
+    $stmt->execute([
+        'nome' => $nome,
+        'email' => $email,
+        'senha_hash' => $senhaHash,
+        'tipo' => 'admin',
+        'ativo' => 1,
+    ]);
+}
+
 function CriarTabelas(): void
 {
     $pdoServidor = conectarServidor();
@@ -476,6 +525,9 @@ try {
     }
 
     CriarTabelas();
+
+    $pdo = conectarBanco();
+    garantirAdministradorPadrao($pdo);
 
     responderJson([
         'sucesso' => true,

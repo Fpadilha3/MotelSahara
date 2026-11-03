@@ -9,6 +9,55 @@ $pdo = null;
 $metodo = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $acao = strtolower((string) ($_GET['acao'] ?? ''));
 
+function garantirAdministradorPadrao(PDO $pdo): void
+{
+    $nome = 'Administrador Motel Sahara';
+    $email = 'motel@gmail.com';
+    $senha = 'saharaADM2026@';
+    $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+
+    $stmt = $pdo->prepare(
+        'SELECT id FROM usuarios WHERE email = :email LIMIT 1'
+    );
+    $stmt->execute(['email' => $email]);
+    $usuarioId = $stmt->fetchColumn();
+
+    if ($usuarioId !== false) {
+        $stmt = $pdo->prepare(
+            'UPDATE usuarios
+             SET nome = :nome,
+                 email = :email,
+                 senha_hash = :senha_hash,
+                 tipo = :tipo,
+                 ativo = :ativo
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'nome' => $nome,
+            'email' => $email,
+            'senha_hash' => $senhaHash,
+            'tipo' => 'admin',
+            'ativo' => 1,
+            'id' => $usuarioId,
+        ]);
+        return;
+    }
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO usuarios
+            (nome, email, senha_hash, tipo, ativo)
+         VALUES
+            (:nome, :email, :senha_hash, :tipo, :ativo)'
+    );
+    $stmt->execute([
+        'nome' => $nome,
+        'email' => $email,
+        'senha_hash' => $senhaHash,
+        'tipo' => 'admin',
+        'ativo' => 1,
+    ]);
+}
+
 try {
     $pdo = conectarBanco();
 
@@ -27,6 +76,10 @@ try {
     $dados = lerJson();
 
     if ($acao === 'login') {
+        if (($dados['tipo_esperado'] ?? '') === 'admin') {
+            garantirAdministradorPadrao($pdo);
+        }
+
         $email = strtolower(trim((string) ($dados['email'] ?? '')));
         $senha = (string) ($dados['senha'] ?? '');
         $tipoEsperado = (string) ($dados['tipo_esperado'] ?? '');
