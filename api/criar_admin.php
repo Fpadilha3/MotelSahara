@@ -13,7 +13,7 @@ try {
 
     $nome = 'Administrador Motel Sahara';
     $email = 'motel@gmail.com';
-    $senha = 'Sahara@Adm#2026';
+    $senha = 'saharaADM2026@';
 
     $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
@@ -63,7 +63,6 @@ try {
     }
 
     echo "E-mail: " . $email . "\n";
-    echo "Senha: " . $senha . "\n";
 
 } catch (Throwable $e) {
     error_log($e->getMessage());

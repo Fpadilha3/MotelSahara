@@ -36,41 +36,6 @@ function validarDataOpcional($valor, string $campo): ?string
     return $data->format('Y-m-d H:i:s');
 }
 
-function validarUrlOpcional($valor, string $campo, bool $somenteGoogle = false): ?string
-{
-    if ($valor === null) {
-        return null;
-    }
-    if (!is_scalar($valor)) {
-        responderJson(['sucesso' => false, 'mensagem' => "Informe um link válido para {$campo}."], 422);
-    }
-
-    $url = trim((string) $valor);
-    if ($url === '') {
-        return null;
-    }
-    $partes = parse_url($url);
-
-    if (
-        mb_strlen($url) > 500
-        ||
-        filter_var($url, FILTER_VALIDATE_URL) === false
-        || ($partes['scheme'] ?? '') !== 'https'
-        || ($somenteGoogle && !in_array(
-            strtolower((string) ($partes['host'] ?? '')),
-            ['maps.google.com', 'google.com', 'www.google.com', 'maps.app.goo.gl'],
-            true
-        ))
-    ) {
-        responderJson([
-            'sucesso' => false,
-            'mensagem' => "Informe um link HTTPS válido para {$campo}."
-        ], 422);
-    }
-
-    return $url;
-}
-
 function registrarLogConfiguracao(
     PDO $pdo,
     int $usuarioId,
@@ -245,91 +210,8 @@ try {
             $stmt = $pdo->query('SELECT * FROM informacoes_motel WHERE id = 1');
             responderJson(['sucesso' => true, 'dados' => $stmt->fetch()]);
         }
-        if ($metodoHttp !== 'PUT') {
-            responderJson(['sucesso' => false, 'mensagem' => 'Método não permitido.'], 405);
-        }
-
-        $entrada = lerJson();
-        $campos = [
-            'nome' => [120, true],
-            'descricao' => [5000, false],
-            'endereco' => [255, false],
-            'bairro' => [120, false],
-            'cidade' => [120, false],
-            'estado' => [80, false],
-            'referencia' => [255, false],
-            'telefone' => [25, false],
-            'whatsapp' => [25, false],
-            'email' => [190, false],
-            'horario_atendimento' => [255, false],
-            'instagram_url' => [500, false],
-            'facebook_url' => [500, false],
-            'tiktok_url' => [500, false],
-            'outras_informacoes' => [5000, false]
-        ];
-        $dados = [];
-        foreach ($campos as $campo => [$limite, $obrigatorio]) {
-            $valorEntrada = $entrada[$campo] ?? '';
-            if (!is_scalar($valorEntrada)) {
-                responderJson(['sucesso' => false, 'mensagem' => "Confira o campo {$campo}."], 422);
-            }
-            $valor = trim((string) $valorEntrada);
-            if (($obrigatorio && $valor === '') || mb_strlen($valor) > $limite) {
-                responderJson([
-                    'sucesso' => false,
-                    'mensagem' => "Confira o campo {$campo} (limite de {$limite} caracteres)."
-                ], 422);
-            }
-            $dados[$campo] = $valor !== '' ? $valor : null;
-        }
-        $horarioConfirmado = filter_var(
-            $entrada['horario_confirmado'] ?? 0,
-            FILTER_VALIDATE_INT
-        );
-        if (!in_array($horarioConfirmado, [0, 1], true)) {
-            responderJson([
-                'sucesso' => false,
-                'mensagem' => 'Confirme se o horário informado está correto antes de publicá-lo.'
-            ], 422);
-        }
-        if ($horarioConfirmado === 1 && $dados['horario_atendimento'] === null) {
-            responderJson([
-                'sucesso' => false,
-                'mensagem' => 'Informe o horário de funcionamento antes de confirmá-lo para publicação.'
-            ], 422);
-        }
-        $dados['horario_confirmado'] = $horarioConfirmado;
-        if ($dados['email'] !== null && !filter_var($dados['email'], FILTER_VALIDATE_EMAIL)) {
-            responderJson(['sucesso' => false, 'mensagem' => 'Informe um e-mail válido.'], 422);
-        }
-        foreach (['telefone' => [8, 15], 'whatsapp' => [10, 15]] as $campo => [$min, $max]) {
-            if ($dados[$campo] === null) {
-                continue;
-            }
-            $digitos = preg_replace('/\D+/', '', $dados[$campo]);
-            if (strlen($digitos) < $min || strlen($digitos) > $max) {
-                responderJson(['sucesso' => false, 'mensagem' => "Informe um número válido para {$campo}."], 422);
-            }
-        }
-        foreach (['instagram_url', 'facebook_url', 'tiktok_url'] as $campo) {
-            $dados[$campo] = validarUrlOpcional($dados[$campo], $campo);
-        }
-        $dados['google_maps_url'] = validarUrlOpcional(
-            $entrada['google_maps_url'] ?? null,
-            'Google Maps',
-            true
-        );
-        $set = [];
-        foreach (array_keys($dados) as $campo) {
-            $set[] = "`{$campo}` = :{$campo}";
-        }
-        $dados['id'] = 1;
-        $pdo->beginTransaction();
-        $stmt = $pdo->prepare('UPDATE informacoes_motel SET ' . implode(', ', $set) . ' WHERE id = :id');
-        $stmt->execute($dados);
-        registrarLogConfiguracao($pdo, $usuario['id'], 'atualizar', 'informacoes_motel', 1);
-        $pdo->commit();
-        responderJson(['sucesso' => true, 'mensagem' => 'Informações do motel salvas.']);
+        header('Allow: GET');
+        responderJson(['sucesso' => false, 'mensagem' => 'As informações institucionais são somente leitura.'], 405);
     }
 
     if ($recurso === 'comercial') {

@@ -1,73 +1,358 @@
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Informações oficiais, localização e contato do Motel Sahara.">
-    <title>Sobre o Motel | Motel Sahara</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="description" content="Motel Sahara - Uma experiência exclusiva de conforto, privacidade e sofisticação.">
+    <title>Motel Sahara | Uma experiência exclusiva</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="css/style.css">
     <script src="script.js" defer></script>
 </head>
-<body class="public-info-page">
-<header class="public-info-header">
-    <a class="brand brand-light" href="index.html"><span class="brand-symbol" aria-hidden="true">✦</span><span class="brand-copy"><span class="brand-name">SAHARA</span><span class="brand-subtitle">MOTEL BOUTIQUE</span></span></a>
-    <nav aria-label="Navegação principal"><a href="index.html">Entrar</a><a href="admin-login.html">Área administrativa</a></nav>
+
+<body class="home-page">
+
+<header class="home-header">
+    <a class="brand brand-light" href="index.html">
+        <span class="brand-symbol">✦</span>
+        <span class="brand-copy">
+            <span class="brand-name">SAHARA</span>
+            <span class="brand-subtitle">MOTEL BOUTIQUE</span>
+        </span>
+    </a>
+
+    <nav class="home-navigation" aria-label="Navegação principal">
+        <a href="#inicio">Início</a>
+        <a href="#sobre">O Motel</a>
+        <a href="#acomodacoes">Suítes</a>
+        <a href="#experiencia">Experiência</a>
+        <a href="#contato">Contato</a>
+    </nav>
+
+    <a href="login.html" class="btn btn-primary home-login">
+        Entrar na minha conta
+    </a>
 </header>
-<main class="public-info-main">
-    <section class="public-info-hero" aria-labelledby="publicInfoTitle">
-        <div class="public-info-hero-copy">
-            <span class="section-kicker">MOTEL SAHARA · INFORMAÇÕES OFICIAIS</span>
-            <h1 id="publicInfoTitle">Uma experiência com identidade própria.</h1>
-            <p>Conheça o estabelecimento a partir das informações cadastradas pela administração: apresentação, localização e canais de atendimento.</p>
-            <div class="public-info-actions">
-                <a class="btn btn-primary" href="#publicLocation">Consultar localização</a>
-                <a class="btn btn-secondary" href="#publicContact">Falar com o motel</a>
+
+<main>
+
+    <!-- HERO PRINCIPAL -->
+    <section class="home-hero" id="inicio">
+
+        <div class="home-hero-overlay"></div>
+
+        <div class="home-hero-content">
+
+            <span class="section-kicker">
+                ELEGÂNCIA · CONFORTO · PRIVACIDADE
+            </span>
+
+            <h1>
+                Descubra uma experiência
+                <span>extraordinária.</span>
+            </h1>
+
+            <p>
+                Um ambiente pensado para proporcionar momentos especiais,
+                com conforto, sofisticação e privacidade em cada detalhe.
+            </p>
+
+            <div class="home-hero-actions">
+                <a href="login.html" class="btn btn-primary">
+                    Conhecer nossas suítes
+                </a>
+
+                <a href="#sobre" class="btn btn-secondary">
+                    Descobrir o Sahara
+                </a>
             </div>
+
+            <div class="home-hero-details">
+                <div>
+                    <span class="home-detail-symbol">✦</span>
+                    <span>Conforto exclusivo</span>
+                </div>
+
+                <div>
+                    <span class="home-detail-symbol">◈</span>
+                    <span>Privacidade</span>
+                </div>
+
+                <div>
+                    <span class="home-detail-symbol">❖</span>
+                    <span>Experiência diferenciada</span>
+                </div>
+            </div>
+
         </div>
-        <div class="public-info-hero-mark" aria-hidden="true"><span>✦</span></div>
+
+        <a href="#sobre" class="home-scroll">
+            <span>EXPLORE</span>
+            <span>↓</span>
+        </a>
+
     </section>
-    <div id="publicInfoLoading" class="notice-card" role="status">Carregando informações…</div>
-    <div id="publicInfoError" class="notice-card is-error" role="alert" hidden></div>
-    <div id="publicInfoContent" hidden>
-        <div class="public-info-grid">
-            <section class="panel public-info-card public-info-presentation">
-                <span class="section-kicker">APRESENTAÇÃO</span>
-                <h2 id="publicInfoName">Motel Sahara</h2>
-                <p id="publicInfoDescription" class="public-info-copy"></p>
-                <div id="publicInfoExtra" class="public-info-extra public-info-copy"></div>
-            </section>
-            <section class="panel public-info-card public-info-contact" id="publicContact">
-                <span class="section-kicker">ATENDIMENTO</span>
-                <h2>Contato</h2>
-                <div id="publicContactList" class="public-info-actions"></div>
-            </section>
-            <section class="public-hours-card" id="publicHoursCard" aria-labelledby="publicHoursTitle" hidden>
-                <div class="public-hours-icon" aria-hidden="true">◷</div>
-                <div class="public-hours-copy">
-                    <span class="section-kicker">HORÁRIO DE FUNCIONAMENTO</span>
-                    <p id="publicInfoHoursDays" class="public-hours-days"></p>
-                    <strong id="publicInfoHours" class="public-hours-time"></strong>
-                </div>
-            </section>
-            <section class="panel public-info-card public-info-location" id="publicLocation">
-                <div class="public-info-card-heading">
-                    <div><span class="section-kicker">COMO CHEGAR</span><h2>Localização</h2></div>
-                    <span class="public-info-coordinate-mark" aria-hidden="true">⌖</span>
-                </div>
-                <p id="publicInfoAddress" class="public-info-copy"></p>
-                <p id="publicInfoReference" class="public-info-copy"></p>
-                <div class="public-info-actions" id="publicMapActions"></div>
-                <iframe id="publicMapFrame" title="Mapa de localização do Motel Sahara" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
-            </section>
-            <section class="panel public-info-card public-info-social" id="publicSocialSection" hidden>
-                <span class="section-kicker">CANAIS OFICIAIS</span>
-                <h2>Redes sociais</h2>
-                <div id="publicSocialLinks" class="public-info-actions"></div>
-            </section>
+
+
+    <!-- APRESENTAÇÃO -->
+    <section class="home-about" id="sobre">
+
+        <div class="home-about-image">
+            <img
+                src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=85"
+                alt="Ambiente sofisticado de hospedagem"
+                loading="lazy"
+            >
+            <span class="home-image-decoration">SAHARA</span>
         </div>
-    </div>
-    <footer class="app-footer"><span>© <span data-current-year>2026</span> Motel Sahara</span><span>Informações oficiais mantidas pelo estabelecimento</span></footer>
+
+        <div class="home-about-content">
+
+            <span class="section-kicker">CONHEÇA O SAHARA</span>
+
+            <h2>
+                Muito além de uma estadia.
+                <span>Uma experiência única.</span>
+            </h2>
+
+            <p>
+                O Motel Sahara foi pensado para oferecer uma experiência
+                diferenciada, unindo conforto, sofisticação e privacidade.
+            </p>
+
+            <p>
+                Cada detalhe contribui para criar um ambiente acolhedor,
+                elegante e preparado para proporcionar momentos especiais.
+            </p>
+
+            <a href="sobre.html" class="btn btn-primary">
+                Conheça o motel
+            </a>
+
+        </div>
+
+    </section>
+
+
+    <!-- SUÍTES -->
+    <section class="home-suites" id="acomodacoes">
+
+        <div class="home-section-heading">
+            <span class="section-kicker">ACOMODAÇÕES</span>
+
+            <h2>
+                Encontre seu espaço
+                <span>perfeito.</span>
+            </h2>
+
+            <p>
+                Conheça nossas opções de suítes e escolha a experiência
+                ideal para o seu momento.
+            </p>
+        </div>
+
+        <div class="home-suites-container" id="homeSuites">
+
+            <article class="home-suite-card">
+                <div class="home-suite-image">
+                    <img
+                        src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=85"
+                        alt="Suíte elegante"
+                        loading="lazy"
+                    >
+                </div>
+
+                <div class="home-suite-content">
+                    <span class="section-kicker">CONFORTO</span>
+                    <h3>Suítes exclusivas</h3>
+                    <p>
+                        Ambientes preparados para proporcionar
+                        conforto e tranquilidade.
+                    </p>
+                    <a href="login.html">Conhecer opções →</a>
+                </div>
+            </article>
+
+            <article class="home-suite-card">
+                <div class="home-suite-image">
+                    <img
+                        src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=85"
+                        alt="Ambiente sofisticado"
+                        loading="lazy"
+                    >
+                </div>
+
+                <div class="home-suite-content">
+                    <span class="section-kicker">SOFISTICAÇÃO</span>
+                    <h3>Ambientes especiais</h3>
+                    <p>
+                        Detalhes cuidadosamente pensados
+                        para uma experiência diferenciada.
+                    </p>
+                    <a href="login.html">Conhecer opções →</a>
+                </div>
+            </article>
+
+            <article class="home-suite-card">
+                <div class="home-suite-image">
+                    <img
+                        src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=85"
+                        alt="Decoração refinada"
+                        loading="lazy"
+                    >
+                </div>
+
+                <div class="home-suite-content">
+                    <span class="section-kicker">EXCLUSIVIDADE</span>
+                    <h3>Experiência Sahara</h3>
+                    <p>
+                        Descubra ambientes que combinam
+                        privacidade e elegância.
+                    </p>
+                    <a href="login.html">Conhecer opções →</a>
+                </div>
+            </article>
+
+        </div>
+
+        <div class="home-suites-action">
+            <a href="login.html" class="btn btn-primary">
+                Ver todas as suítes
+            </a>
+        </div>
+
+    </section>
+
+
+    <!-- EXPERIÊNCIA -->
+    <section class="home-experience" id="experiencia">
+
+        <div class="home-experience-content">
+
+            <span class="section-kicker">A EXPERIÊNCIA SAHARA</span>
+
+            <h2>
+                Cada detalhe faz
+                <span>a diferença.</span>
+            </h2>
+
+            <p>
+                Mais do que um ambiente, oferecemos uma experiência
+                construída em torno do conforto, da privacidade
+                e da atenção aos detalhes.
+            </p>
+
+            <div class="home-experience-items">
+
+                <div>
+                    <span>✦</span>
+                    <div>
+                        <h3>Conforto</h3>
+                        <p>Ambientes preparados para proporcionar bem-estar.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <span>◈</span>
+                    <div>
+                        <h3>Privacidade</h3>
+                        <p>Discrição e tranquilidade em todos os momentos.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <span>❖</span>
+                    <div>
+                        <h3>Sofisticação</h3>
+                        <p>Uma identidade visual e ambientes diferenciados.</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="home-experience-decoration">
+            <span>✦</span>
+            <strong>SAHARA</strong>
+            <small>MOTEL BOUTIQUE</small>
+        </div>
+
+    </section>
+
+
+    <!-- CHAMADA PARA RESERVAS -->
+    <section class="home-booking">
+
+        <span class="section-kicker">SEU PRÓXIMO MOMENTO ESPECIAL</span>
+
+        <h2>
+            Sua experiência
+            <span>começa aqui.</span>
+        </h2>
+
+        <p>
+            Acesse sua conta, conheça nossas suítes
+            e descubra tudo o que o Motel Sahara oferece.
+        </p>
+
+        <a href="login.html" class="btn btn-primary">
+            Acessar minha conta
+        </a>
+
+    </section>
+
+
+    <!-- CONTATO -->
+    <section class="home-contact" id="contato">
+
+        <div>
+            <span class="section-kicker">ESTAMOS À DISPOSIÇÃO</span>
+            <h2>Entre em contato.</h2>
+            <p>
+                Para informações, atendimento e dúvidas,
+                utilize nossos canais de comunicação.
+            </p>
+        </div>
+
+        <a href="sobre.html#publicContact" class="btn btn-secondary">
+            Ver informações de contato
+        </a>
+
+    </section>
+
 </main>
+
+
+<!-- RODAPÉ -->
+<footer class="home-footer">
+
+    <a class="brand brand-light" href="index.html">
+        <span class="brand-symbol">✦</span>
+        <span class="brand-copy">
+            <span class="brand-name">SAHARA</span>
+            <span class="brand-subtitle">MOTEL BOUTIQUE</span>
+        </span>
+    </a>
+
+    <div class="home-footer-links">
+        <a href="#inicio">Início</a>
+        <a href="#sobre">O Motel</a>
+        <a href="#acomodacoes">Suítes</a>
+        <a href="#contato">Contato</a>
+        <a href="admin-login.html">Área administrativa</a>
+    </div>
+
+    <p>
+        © <span data-current-year>2026</span> Motel Sahara.
+        Todos os direitos reservados.
+    </p>
+
+</footer>
+
 </body>
 </html>
+```

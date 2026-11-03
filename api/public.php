@@ -21,7 +21,25 @@ try {
     );
     $informacoes = $stmt->fetch();
     if (!$informacoes) {
-        responderJson(['sucesso' => false, 'mensagem' => 'Informações ainda não cadastradas.'], 404);
+        $informacoes = [
+            'nome' => 'Motel Sahara',
+            'descricao' => null,
+            'endereco' => null,
+            'bairro' => null,
+            'cidade' => null,
+            'estado' => null,
+            'referencia' => null,
+            'google_maps_url' => null,
+            'telefone' => null,
+            'whatsapp' => null,
+            'email' => null,
+            'horario_atendimento' => null,
+            'horario_confirmado' => 0,
+            'instagram_url' => null,
+            'facebook_url' => null,
+            'tiktok_url' => null,
+            'outras_informacoes' => null
+        ];
     }
     responderJson(['sucesso' => true, 'dados' => $informacoes]);
 } catch (Throwable $e) {

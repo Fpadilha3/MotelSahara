@@ -2260,6 +2260,48 @@ input[type="number"] {
     font-size: 1.6rem;
 }
 
+.payment-summary-section,
+.payment-summary-consumption {
+    display: grid;
+    gap: 9px;
+}
+
+.payment-summary-section {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.payment-summary-heading,
+.payment-summary-consumption > strong {
+    color: var(--color-gold-light);
+    font-size: 11px;
+}
+
+.payment-summary-item {
+    display: grid;
+    gap: 4px;
+}
+
+.payment-summary-item small,
+.payment-summary-detail {
+    color: var(--color-text-muted);
+    font-size: 10px;
+}
+
+.payment-summary-detail strong {
+    color: var(--color-text-soft);
+    font-size: 10px;
+}
+
+.payment-summary-subtotal {
+    padding-top: 7px;
+    border-top: 1px dashed var(--border-subtle);
+}
+
+.payment-summary-discount strong {
+    color: var(--color-gold-light);
+}
+
 
 /* ============================================================
    24. CATÁLOGO DE PRODUTOS
@@ -3905,5 +3947,149 @@ summary:focus-visible {
 
     .public-hours-time {
         font-size: clamp(1.8rem, 8vw, 2.5rem);
+    }
+}
+
+.room-photo-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.room-photo-preview {
+    min-width: 0;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+}
+
+.room-photo-preview img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--radius-xs);
+    object-fit: cover;
+}
+
+.room-photo-preview figcaption {
+    overflow: hidden;
+    margin: 8px 0;
+    color: var(--color-text-soft);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.suite-gallery {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 18px;
+}
+
+.suite-gallery-main {
+    width: 100%;
+    max-height: 360px;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    cursor: zoom-in;
+}
+
+.suite-gallery-main img {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.suite-gallery-thumbnails {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    padding: 2px 1px 5px;
+}
+
+.suite-gallery-thumbnail {
+    flex: 0 0 82px;
+    height: 62px;
+    overflow: hidden;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--radius-xs);
+    background: var(--surface-card);
+    cursor: pointer;
+}
+
+.suite-gallery-thumbnail.is-active {
+    border-color: var(--color-gold);
+}
+
+.suite-gallery-thumbnail img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.suite-gallery-placeholder {
+    display: grid;
+    min-height: 140px;
+    margin: 0 0 18px;
+    place-items: center;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--color-gold);
+    background: var(--surface-elevated);
+    font-size: 42px;
+}
+
+.room-image-dialog {
+    position: relative;
+    width: min(1100px, calc(100% - 28px));
+    max-width: none;
+    max-height: 92vh;
+    margin: auto;
+    padding: 48px 12px 12px;
+    border: 1px solid var(--color-gold-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+}
+
+.room-image-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(5px);
+}
+
+.room-image-dialog img {
+    display: block;
+    width: 100%;
+    max-height: calc(92vh - 72px);
+    object-fit: contain;
+}
+
+.room-image-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+@media (max-width: 600px) {
+    .room-photo-previews {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .suite-gallery-thumbnail {
+        flex-basis: 68px;
+        height: 54px;
+    }
+
+    .room-image-dialog {
+        padding: 48px 8px 8px;
     }
 }

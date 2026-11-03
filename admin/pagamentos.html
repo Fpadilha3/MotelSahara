@@ -29,18 +29,18 @@
         <header class="topbar"><div><span class="section-kicker">CONTROLE FINANCEIRO</span><h1 class="page-title">Pagamentos</h1></div><button type="button" class="icon-button" aria-label="Abrir menu" data-sidebar-toggle>☰</button></header>
         <div class="page-intro"><p>Consulte os valores registrados, acompanhe as confirmações e registre pagamentos vinculados às estadias.</p></div>
 
-        <section class="stats-grid dashboard-section">
-            <article class="stat-card"><span class="stat-label">Pagamentos aprovados</span><span class="stat-value" data-payment-stat="aprovados">—</span><span class="stat-description">Total confirmado no período</span></article>
-            <article class="stat-card"><span class="stat-label">Pendentes</span><span class="stat-value" data-payment-stat="pendentes">—</span><span class="stat-description">Aguardando confirmação</span></article>
-            <article class="stat-card"><span class="stat-label">Recusados</span><span class="stat-value" data-payment-stat="recusados">—</span><span class="stat-description">Transações não aprovadas</span></article>
-            <article class="stat-card"><span class="stat-label">Estornados</span><span class="stat-value" data-payment-stat="estornados">—</span><span class="stat-description">Pagamentos estornados</span></article>
+        <section class="stats-grid dashboard-section" aria-label="Resumo financeiro">
+            <article class="stat-card"><span class="stat-label">Faturamento recebido</span><span class="stat-value" data-payment-finance="received">—</span><span class="stat-description">Pagamentos confirmados</span></article>
+            <article class="stat-card"><span class="stat-label">Valores pendentes</span><span class="stat-value" data-payment-finance="pending">—</span><span class="stat-description">Saldo de cobranças válidas em aberto</span></article>
+            <article class="stat-card"><span class="stat-label">Valores recusados</span><span class="stat-value" data-payment-finance="refused">—</span><span class="stat-description">Tentativas recusadas, fora do faturamento</span></article>
+            <article class="stat-card"><span class="stat-label">Pagamentos confirmados</span><span class="stat-value" data-payment-finance="confirmed">—</span><span class="stat-description">Quantidade aprovada</span></article>
         </section>
 
         <section class="panel dashboard-section">
             <div class="section-heading"><div><span class="section-kicker">HISTÓRICO FINANCEIRO</span><h2>Pagamentos registrados</h2></div></div>
 
             <form id="paymentFilterForm" class="filter-bar">
-                <div class="form-group"><label for="paymentSearch">Código da transação ou estadia</label><input class="form-control" id="paymentSearch" name="busca" type="search" placeholder="Pesquisar pagamento"></div>
+                <div class="form-group"><label for="paymentSearch">Pagamento, estadia ou cliente</label><input class="form-control" id="paymentSearch" name="busca" type="search" placeholder="Pesquisar histórico"></div>
                 <div class="form-group"><label for="paymentStatus">Situação</label><select class="form-control" id="paymentStatus" name="status"><option value="">Todas</option><option value="pendente">Pendente</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="estornado">Estornado</option><option value="cancelado">Cancelado</option></select></div>
                 <div class="form-group"><label for="paymentMethod">Método</label><select class="form-control" id="paymentMethod" name="metodo"><option value="">Todos</option><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select></div>
                 <button type="submit" class="btn btn-secondary">Filtrar</button>
@@ -48,7 +48,7 @@
 
             <div class="table-responsive">
                 <table class="data-table">
-                    <thead><tr><th>ID</th><th>Estadia</th><th>Valor</th><th>Custo operacional</th><th>Método</th><th>Data</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <thead><tr><th>ID</th><th>Cliente</th><th>Estadia / suíte</th><th>Valor</th><th>Forma de pagamento</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
                     <tbody id="paymentsTable"><tr><td colspan="8" class="empty-state">Nenhum pagamento carregado.</td></tr></tbody>
                 </table>
             </div>
@@ -59,21 +59,19 @@
             <form id="paymentForm" class="data-form" action="../api/api.php?tabela=pagamentos" method="POST">
                 <input type="hidden" name="acao" value="criar">
                 <div class="form-grid">
-                    <div class="form-group"><label for="pagamento_estadia">Estadia *</label><select class="form-control" id="pagamento_estadia" name="estadia_id" required><option value="">Carregando estadias pendentes…</option></select></div>
+                    <div class="form-group"><label for="pagamento_estadia">Estadia com saldo em aberto *</label><select class="form-control" id="pagamento_estadia" name="estadia_id" required><option value="">Carregando estadias com saldo em aberto…</option></select></div>
                     <div class="form-group"><label for="pagamento_metodo">Método de pagamento *</label><select class="form-control" id="pagamento_metodo" name="metodo" required><option value="">Selecione</option><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select>
                         <div id="paymentFeeSettings" class="payment-fee-settings" hidden><label for="paymentFeeTerm">Prazo de recebimento de referência</label><select class="form-control" id="paymentFeeTerm" name="prazo_recebimento_dias_aplicado"></select></div>
-                        <p id="paymentDiscountPreview" class="payment-discount-preview" role="status" aria-live="polite" hidden></p>
-                        <p id="paymentFeePreview" class="payment-fee-preview" role="status" aria-live="polite" hidden></p>
                     </div>
-                    <div class="form-group"><label for="pagamento_valor">Total cobrado do cliente (R$) *</label><input class="form-control" id="pagamento_valor" name="valor" type="number" min="0.01" step="0.01" required placeholder="0,00"></div>
+                    <div class="form-group"><label for="pagamento_valor">Valor a cobrar do cliente (R$) *</label><input class="form-control" id="pagamento_valor" name="valor" type="number" min="0.01" step="0.01" required placeholder="0,00"></div>
                     <div class="form-group"><label for="pagamento_status">Situação *</label><select class="form-control" id="pagamento_status" name="status" required><option value="pendente">Pendente</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="estornado">Estornado</option><option value="cancelado">Cancelado</option></select></div>
                     <div class="form-group form-grid-full"><label for="pagamento_observacoes">Observações</label><textarea class="form-control" id="pagamento_observacoes" name="observacoes" rows="2" maxlength="500" placeholder="Referência ou observações do lançamento."></textarea></div>
                 </div>
-                <div id="paymentStaySummary" class="room-booking-summary" aria-live="polite">Selecione uma estadia para consultar o total, os valores já pagos e o saldo em aberto.</div>
+                <div id="paymentStaySummary" class="room-booking-summary" aria-live="polite">Selecione uma estadia para consultar o saldo e o total a cobrar.</div>
                 <div id="paymentMessage" class="form-message" role="status" aria-live="polite" hidden></div>
                 <div class="form-actions"><button type="reset" class="btn btn-secondary">Limpar</button><button type="submit" class="btn btn-primary">Registrar pagamento</button></div>
             </form>
-            <p class="field-hint">O painel não processa Pix ou cartão. Confira o total efetivamente recebido antes de aprovar; a taxa configurada para repasse é discriminada e separada do valor que abate a estadia.</p>
+            <p class="field-hint">O painel não processa Pix ou cartão. Recusas permanecem no histórico e uma nova tentativa gera um lançamento separado; enquanto houver pagamento pendente, não é possível duplicar a tentativa. Confirme o recebimento antes de aprovar.</p>
         </section>
 
         <section class="panel dashboard-section">

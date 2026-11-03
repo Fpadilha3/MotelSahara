@@ -40,7 +40,7 @@ $colunas = [
         'numero', 'nome', 'categoria', 'descricao', 'capacidade_pessoas',
         'maximo_pessoas', 'preco_pessoa_extra',
         'preco_periodo', 'duracao_periodo_minutos',
-        'percentual_taxa_servico', 'status', 'imagem_url'
+        'percentual_taxa_servico', 'status'
     ],
     'frigobar' => [
         'nome', 'descricao', 'categoria', 'preco', 'estoque',
@@ -302,6 +302,53 @@ try {
      * LEITURA
      */
     if ($metodo === 'GET') {
+        if ($tabela === 'pagamentos' && $acao === 'resumo_financeiro') {
+            if ($usuario['tipo'] !== 'admin') {
+                responderJson([
+                    'sucesso' => false,
+                    'mensagem' => 'Acesso permitido somente ao administrador.'
+                ], 403);
+            }
+
+            $stmt = $pdo->query(
+                "SELECT
+                    (SELECT COALESCE(SUM(valor), 0)
+                     FROM pagamentos
+                     WHERE status = 'aprovado') AS recebido,
+                    (SELECT COALESCE(SUM(COALESCE(valor_cobrado_cliente, valor)), 0)
+                     FROM pagamentos
+                     WHERE status = 'recusado') AS recusado,
+                    (SELECT COUNT(*)
+                     FROM pagamentos
+                     WHERE status = 'aprovado') AS confirmados,
+                    (
+                        SELECT COALESCE(SUM(GREATEST(0, ROUND(
+                            e.valor_total_previsto
+                            + COALESCE(c.total, 0)
+                            - COALESCE(p.valor_pago, 0)
+                            - COALESCE(p.descontos_aplicados, 0),
+                            2
+                        ))), 0)
+                        FROM estadias e
+                        LEFT JOIN (
+                            SELECT estadia_id,
+                                   SUM(subtotal * (1 + percentual_taxa_aplicado / 100)) AS total
+                            FROM consumo
+                            GROUP BY estadia_id
+                        ) c ON c.estadia_id = e.id
+                        LEFT JOIN (
+                            SELECT estadia_id, SUM(valor) AS valor_pago,
+                                   SUM(desconto_aplicado) AS descontos_aplicados
+                            FROM pagamentos
+                            WHERE status = 'aprovado'
+                            GROUP BY estadia_id
+                        ) p ON p.estadia_id = e.id
+                        WHERE e.status <> 'cancelada'
+                    ) AS pendente"
+            );
+            responderJson(['sucesso' => true, 'dados' => $stmt->fetch()]);
+        }
+
         if ($tabela === 'estadias' && $acao === 'pagamentos_pendentes') {
             if ($usuario['tipo'] !== 'admin') {
                 responderJson([
@@ -333,6 +380,12 @@ try {
                     GROUP BY estadia_id
                  ) p ON p.estadia_id = e.id
                  WHERE e.status <> 'cancelada'
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM pagamentos pp
+                       WHERE pp.estadia_id = e.id
+                         AND pp.status = 'pendente'
+                   )
                    AND ROUND(e.valor_total_previsto + COALESCE(c.total, 0)
                        - COALESCE(p.valor_pago, 0)
                        - COALESCE(p.descontos_aplicados, 0), 2) > 0
@@ -423,6 +476,30 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $dados = $stmt->fetchAll();
+
+        if ($tabela === 'quartos' && $dados) {
+            $idsQuartos = array_map(
+                static fn(array $quarto): int => (int) $quarto['id'],
+                $dados
+            );
+            $placeholders = implode(',', array_fill(0, count($idsQuartos), '?'));
+            $stmtImagens = $pdo->prepare(
+                "SELECT quarto_id, caminho
+                 FROM quarto_imagens
+                 WHERE quarto_id IN ({$placeholders})
+                 ORDER BY id"
+            );
+            $stmtImagens->execute($idsQuartos);
+            $imagensPorQuarto = [];
+            foreach ($stmtImagens->fetchAll() as $imagem) {
+                $imagensPorQuarto[(int) $imagem['quarto_id']][] = $imagem['caminho'];
+            }
+            foreach ($dados as &$quarto) {
+                unset($quarto['imagem_url']);
+                $quarto['imagens'] = $imagensPorQuarto[(int) $quarto['id']] ?? [];
+            }
+            unset($quarto);
+        }
 
         // Nunca enviar hashes de senha ao frontend.
         if ($tabela === 'usuarios') {
@@ -970,6 +1047,13 @@ try {
             ], 422);
         }
 
+        $imagensRemovidas = [];
+        if ($tabela === 'quartos') {
+            $stmt = $pdo->prepare('SELECT caminho FROM quarto_imagens WHERE quarto_id = :id');
+            $stmt->execute(['id' => $id]);
+            $imagensRemovidas = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+
         $pdo->beginTransaction();
         $stmt = $pdo->prepare('DELETE FROM `' . $tabela . '` WHERE id = :id');
         $stmt->execute(['id' => $id]);
@@ -992,6 +1076,18 @@ try {
         );
 
         $pdo->commit();
+        foreach ($imagensRemovidas as $caminho) {
+            if (
+                is_string($caminho)
+                && preg_match('~^uploads/quartos/[a-f0-9]{32}\.(?:jpg|png|webp)$~', $caminho)
+            ) {
+                $arquivoImagem = dirname(__DIR__) . DIRECTORY_SEPARATOR
+                    . str_replace('/', DIRECTORY_SEPARATOR, $caminho);
+                if (is_file($arquivoImagem) && !unlink($arquivoImagem)) {
+                    error_log('[MotelSahara api] Não foi possível remover a imagem ' . $caminho);
+                }
+            }
+        }
         responderJson([
             'sucesso' => true,
             'mensagem' => 'Registro excluído.'
@@ -1301,6 +1397,21 @@ try {
         if (!$conta || $conta['estadia']['status'] === 'cancelada') {
             $pdo->rollBack();
             responderJson(['sucesso' => false, 'mensagem' => 'A estadia não está disponível para pagamentos.'], 409);
+        }
+        $stmt = $pdo->prepare(
+            "SELECT id
+             FROM pagamentos
+             WHERE estadia_id = :estadia_id
+               AND status = 'pendente'
+             LIMIT 1"
+        );
+        $stmt->execute(['estadia_id' => $dados['estadia_id']]);
+        if ($stmt->fetchColumn()) {
+            $pdo->rollBack();
+            responderJson([
+                'sucesso' => false,
+                'mensagem' => 'Já existe uma tentativa pendente para esta estadia. Atualize o status no histórico antes de registrar outra.'
+            ], 409);
         }
         $valorCobrado = round((float) $dados['valor'], 2);
         $prazoRecebimento = (int) $dados['prazo_recebimento_dias_aplicado'];

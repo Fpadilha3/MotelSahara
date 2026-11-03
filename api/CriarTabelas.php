@@ -106,6 +106,22 @@ function CriarTabelas(): void
     ";
 
     $sqls[] = "
+        CREATE TABLE IF NOT EXISTS quarto_imagens (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            quarto_id BIGINT UNSIGNED NOT NULL,
+            caminho VARCHAR(500) NOT NULL,
+            tipo VARCHAR(30) NOT NULL,
+            tamanho_bytes INT UNSIGNED NOT NULL,
+            criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_quarto_imagens_quarto (quarto_id, id),
+            CONSTRAINT fk_quarto_imagens_quarto
+                FOREIGN KEY (quarto_id) REFERENCES quartos(id)
+                ON DELETE CASCADE ON UPDATE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    $sqls[] = "
         CREATE TABLE IF NOT EXISTS informacoes_motel (
             id TINYINT UNSIGNED NOT NULL,
             nome VARCHAR(120) NOT NULL DEFAULT 'Motel Sahara',
@@ -466,7 +482,7 @@ try {
         'mensagem' => 'Banco e tabelas verificados/criados.',
         'banco' => DB_NAME,
         'tabelas' => [
-            'usuarios', 'clientes', 'quartos', 'frigobar',
+            'usuarios', 'clientes', 'quartos', 'quarto_imagens', 'frigobar',
                 'promocoes', 'informacoes_motel', 'configuracoes_comerciais',
                 'taxas_pagamento', 'estadias', 'consumo', 'pagamentos', 'log_admin'
         ]

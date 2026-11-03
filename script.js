@@ -1402,6 +1402,70 @@ function inicializarPreviewImagem() {
     });
 }
 
+function inicializarPreviewFotosQuarto() {
+    const campo = selecionar("#roomPhotos");
+    const previews = selecionar("#roomPhotoPreviews");
+    if (!campo || !previews || campo.dataset.previewHandler === "true") return;
+    campo.dataset.previewHandler = "true";
+    let urlsTemporarias = [];
+    let arquivosSelecionados = [];
+
+    const definirArquivos = (arquivos) => {
+        const selecao = new DataTransfer();
+        arquivos.forEach((arquivo) => selecao.items.add(arquivo));
+        campo.files = selecao.files;
+    };
+
+    const desenharPreviews = () => {
+        urlsTemporarias.forEach((url) => URL.revokeObjectURL(url));
+        urlsTemporarias = [];
+        const arquivos = arquivosSelecionados;
+        previews.innerHTML = arquivos.map((arquivo, indice) => {
+            const url = URL.createObjectURL(arquivo);
+            urlsTemporarias.push(url);
+            return `<figure class="room-photo-preview">
+                <img src="${url}" alt="Prévia de ${escaparHTML(arquivo.name)}">
+                <figcaption>${escaparHTML(arquivo.name)}</figcaption>
+                <button type="button" class="btn btn-secondary btn-small" data-remove-room-photo="${indice}" aria-label="Remover ${escaparHTML(arquivo.name)}">Remover</button>
+            </figure>`;
+        }).join("");
+    };
+
+    campo.addEventListener("change", () => {
+        const novosArquivos = Array.from(campo.files || []);
+        const arquivos = [...arquivosSelecionados, ...novosArquivos];
+        const tipos = ["image/jpeg", "image/png", "image/webp"];
+        const totalBytes = arquivos.reduce((total, arquivo) => total + arquivo.size, 0);
+        const invalido = arquivos.length > 10
+            || totalBytes > 20 * 1024 * 1024
+            || arquivos.some((arquivo) => !tipos.includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024);
+        if (invalido) {
+            definirArquivos(arquivosSelecionados);
+            desenharPreviews();
+            mostrarMensagem(
+                selecionar("#roomMessage"),
+                "Selecione até 10 fotos JPG, PNG ou WEBP, com no máximo 5 MB cada e 20 MB no total."
+            );
+            return;
+        }
+        arquivosSelecionados = arquivos;
+        definirArquivos(arquivosSelecionados);
+        desenharPreviews();
+    });
+
+    previews.addEventListener("click", (evento) => {
+        const botao = evento.target.closest("[data-remove-room-photo]");
+        if (!botao) return;
+        const indiceRemover = Number(botao.dataset.removeRoomPhoto);
+        arquivosSelecionados = arquivosSelecionados.filter((_, indice) => indice !== indiceRemover);
+        definirArquivos(arquivosSelecionados);
+        desenharPreviews();
+    });
+    campo.form?.addEventListener("reset", () => window.setTimeout(() => {
+        arquivosSelecionados = [];
+        desenharPreviews();
+    }, 0));
+}
 
 /* ============================================================
    25. CONTROLE DE EXIBIÇÃO DE SENHA FORTE
@@ -1782,13 +1846,19 @@ function inicializarTema() {
 }
 
 async function solicitarAPI(url, opcoes = {}) {
+    const cabecalhos = { ...(opcoes.headers || {}) };
+    const corpoMultipart = opcoes.body instanceof FormData;
+    if (corpoMultipart) {
+        Object.keys(cabecalhos).forEach((chave) => {
+            if (chave.toLowerCase() === "content-type") delete cabecalhos[chave];
+        });
+    } else if (!Object.keys(cabecalhos).some((chave) => chave.toLowerCase() === "content-type")) {
+        cabecalhos["Content-Type"] = "application/json";
+    }
     const resposta = await fetch(url, {
         ...opcoes,
         credentials: "same-origin",
-        headers: {
-            "Content-Type": "application/json",
-            ...(opcoes.headers || {})
-        }
+        headers: cabecalhos
     });
     const dados = await resposta.json();
 
@@ -1950,6 +2020,10 @@ async function inicializarIntegracaoAPI() {
             evento.preventDefault();
             const mensagem = selecionar(".form-message", formulario);
             const campos = Object.fromEntries(new FormData(formulario).entries());
+            const fotosQuarto = formulario.id === "roomForm"
+                ? Array.from(selecionar("#roomPhotos", formulario)?.files || [])
+                : [];
+            delete campos["fotos[]"];
 
             try {
                 if (formulario.id === "roomForm") {
@@ -1970,7 +2044,29 @@ async function inicializarIntegracaoAPI() {
                     method: formulario.dataset.requestMethod || "POST",
                     body: JSON.stringify(campos)
                 });
-                mostrarMensagem(mensagem, resposta.mensagem, true);
+                let mensagemSucesso = resposta.mensagem;
+                if (formulario.id === "roomForm" && fotosQuarto.length) {
+                    const quartoId = formulario.dataset.recordId || resposta.id;
+                    const formFotos = new FormData();
+                    fotosQuarto.forEach((foto) => formFotos.append("fotos[]", foto));
+                    try {
+                        const respostaFotos = await solicitarAPI(
+                            `../api/upload_quartos.php?quarto_id=${encodeURIComponent(quartoId)}`,
+                            { method: "POST", body: formFotos }
+                        );
+                        mensagemSucesso += ` ${respostaFotos.mensagem}`;
+                    } catch (erroFotos) {
+                        if (!formulario.dataset.recordId && resposta.id) {
+                            formulario.action = `${formulario.dataset.createAction}&id=${encodeURIComponent(resposta.id)}`;
+                            formulario.dataset.requestMethod = "PUT";
+                            formulario.dataset.recordId = String(resposta.id);
+                            const botaoSalvar = formulario.querySelector("button[type='submit']");
+                            if (botaoSalvar) botaoSalvar.textContent = "Atualizar acomodação";
+                        }
+                        throw new Error(`A acomodação foi salva, mas as fotos não foram enviadas. ${erroFotos.message}`);
+                    }
+                }
+                mostrarMensagem(mensagem, mensagemSucesso, true);
                 formulario.reset();
                 await carregarDadosPainel();
             } catch (erro) {
@@ -2037,12 +2133,13 @@ async function carregarDadosPainel() {
             ? await Promise.all([carregarTabela("usuarios"), carregarTabela("clientes")])
             : [[], []];
         const carregaPagamentos = raizAdmin && selecionar("#paymentForm");
-        const [estadiasPendentesPagamento, configuracaoComercial] = carregaPagamentos
+        const [estadiasPendentesPagamento, configuracaoComercial, resumoFinanceiro] = carregaPagamentos
             ? await Promise.all([
                 solicitarAPI("../api/api.php?tabela=estadias&acao=pagamentos_pendentes").then((resultado) => resultado.dados),
-                solicitarConfiguracao("comercial").then((resultado) => resultado.dados)
+                solicitarConfiguracao("comercial").then((resultado) => resultado.dados),
+                solicitarAPI("../api/api.php?tabela=pagamentos&acao=resumo_financeiro").then((resultado) => resultado.dados)
             ])
-            : [[], null];
+            : [[], null, null];
 
         Sahara.dadosPainel = {
             quartos,
@@ -2053,7 +2150,8 @@ async function carregarDadosPainel() {
             consumos,
             usuarios,
             clientes,
-            configuracaoComercial
+            configuracaoComercial,
+            resumoFinanceiro
         };
 
         desenharListaQuartos(quartos, raizAdmin);
@@ -2069,6 +2167,33 @@ async function carregarDadosPainel() {
         if (mensagem) mostrarMensagem(mensagem, erro.message);
         else notificar(erro.message, "aviso");
     }
+}
+
+function caminhoImagemQuarto(caminho) {
+    const relativo = String(caminho || "").replace(/^\/+/, "");
+    return /^uploads\/quartos\/[a-f0-9]{32}\.(?:jpg|png|webp)$/i.test(relativo)
+        ? `../${relativo}`
+        : "";
+}
+
+function renderizarGaleriaQuarto(quarto) {
+    const imagens = (Array.isArray(quarto.imagens) ? quarto.imagens : [])
+        .map((caminho) => caminhoImagemQuarto(caminho))
+        .filter(Boolean);
+    if (!imagens.length) {
+        return '<div class="suite-gallery-placeholder" aria-hidden="true">✦</div>';
+    }
+
+    return `<div class="suite-gallery" data-suite-gallery>
+        <button type="button" class="suite-gallery-main" data-open-room-image aria-label="Ampliar foto da suíte">
+            <img src="${escaparHTML(imagens[0])}" data-suite-main-image data-image-url="${escaparHTML(imagens[0])}" alt="${escaparHTML(quarto.nome)}" loading="lazy" decoding="async">
+        </button>
+        ${imagens.length > 1 ? `<div class="suite-gallery-thumbnails" role="group" aria-label="Fotos da suíte">
+            ${imagens.map((imagem, indice) => `<button type="button" class="suite-gallery-thumbnail${indice === 0 ? " is-active" : ""}" data-suite-photo-index="${indice}" aria-label="Exibir foto ${indice + 1}" aria-pressed="${indice === 0}">
+                <img src="${escaparHTML(imagem)}" alt="" loading="lazy" decoding="async">
+            </button>`).join("")}
+        </div>` : ""}
+    </div>`;
 }
 
 function desenharListaQuartos(quartos, admin) {
@@ -2101,7 +2226,7 @@ function desenharListaQuartos(quartos, admin) {
         if (grid) {
             grid.innerHTML = lista.length
                 ? lista.map((q) => {
-                    const imagem = String(q.imagem_url || "").trim();
+                    const imagem = caminhoImagemQuarto(q.imagens?.[0]);
                     const status = {
                         disponivel: { texto: "Disponível", classe: "badge-success" },
                         ocupado: { texto: "Ocupado", classe: "badge-info" },
@@ -2112,7 +2237,7 @@ function desenharListaQuartos(quartos, admin) {
                     return `
                         <button type="button" class="room-card room-card-action" data-book-room="${Number(q.id)}" aria-label="Ver detalhes e agendar ${escaparHTML(q.nome)}">
                             <div class="room-card-image">
-                                ${imagem
+                                        ${imagem
                                     ? `<img src="${escaparHTML(imagem)}" alt="${escaparHTML(q.nome)}" loading="lazy" decoding="async">`
                                     : '<span class="room-card-placeholder" aria-hidden="true">✦</span>'}
                                 <span class="badge ${status.classe}">${escaparHTML(status.texto)}</span>
@@ -2208,6 +2333,7 @@ function desenharListaQuartos(quartos, admin) {
                         String(agora.getDate()).padStart(2, "0")
                     ].join("-");
                     detalhes.innerHTML = `
+                        ${renderizarGaleriaQuarto(quarto)}
                         <span class="room-card-category">${escaparHTML(quarto.categoria)}</span>
                         <h3>${escaparHTML(quarto.nome)}</h3>
                         <p>${escaparHTML(quarto.descricao || "Conheça esta acomodação do Motel Sahara.")}</p>
@@ -2321,6 +2447,38 @@ function desenharListaQuartos(quartos, admin) {
                 grid.addEventListener("click", abrirAgendamento);
                 const dialogo = selecionar("#roomBookingDialog");
                 const formulario = selecionar("#roomBookingForm");
+                const modalImagem = selecionar("#roomImageDialog");
+                const imagemAmpliada = selecionar("#roomImageLarge");
+                if (dialogo && dialogo.dataset.galleryHandler !== "true") {
+                    dialogo.dataset.galleryHandler = "true";
+                    dialogo.addEventListener("click", (evento) => {
+                        const miniatura = evento.target.closest("[data-suite-photo-index]");
+                        if (miniatura) {
+                            const galeria = miniatura.closest("[data-suite-gallery]");
+                            const principal = galeria?.querySelector("[data-suite-main-image]");
+                            const url = miniatura.querySelector("img")?.src;
+                            if (principal && url) {
+                                principal.src = url;
+                                principal.dataset.imageUrl = url;
+                                principal.alt = `Foto ${Number(miniatura.dataset.suitePhotoIndex) + 1} da suíte`;
+                                galeria.querySelectorAll("[data-suite-photo-index]").forEach((item) => {
+                                    const ativo = item === miniatura;
+                                    item.classList.toggle("is-active", ativo);
+                                    item.setAttribute("aria-pressed", String(ativo));
+                                });
+                            }
+                            return;
+                        }
+                        const ampliar = evento.target.closest("[data-open-room-image]");
+                        const imagemPrincipal = ampliar?.querySelector("[data-suite-main-image]");
+                        if (imagemPrincipal && modalImagem && imagemAmpliada) {
+                            imagemAmpliada.src = imagemPrincipal.dataset.imageUrl;
+                            imagemAmpliada.alt = imagemPrincipal.alt;
+                            modalImagem.showModal();
+                        }
+                    });
+                    selecionar("[data-close-room-image]")?.addEventListener("click", () => modalImagem?.close());
+                }
                 selecionar("[data-close-room-dialog]")?.addEventListener("click", () => dialogo?.close());
                 formulario?.addEventListener("submit", async (evento) => {
                     evento.preventDefault();
@@ -2731,8 +2889,6 @@ function atualizarFormularioPagamento() {
     } = Sahara.dadosPainel;
     const metodoPagamento = selecionar("#pagamento_metodo");
     const situacaoPagamento = selecionar("#pagamento_status");
-    const previewDesconto = selecionar("#paymentDiscountPreview");
-    const previewTaxa = selecionar("#paymentFeePreview");
     const campoPrazo = selecionar("#paymentFeeTerm");
     const botaoRegistrar = formulario.querySelector('button[type="submit"]');
     const nomesUsuarios = new Map(usuarios.map((usuario) => [Number(usuario.id), usuario.nome]));
@@ -2740,19 +2896,35 @@ function atualizarFormularioPagamento() {
         Number(cliente.id),
         nomesUsuarios.get(Number(cliente.usuario_id)) || `Cliente #${cliente.id}`
     ]));
+    const nomesProdutos = new Map((Sahara.dadosPainel.produtos || []).map((produto) => [
+        Number(produto.id),
+        produto.nome
+    ]));
+    const metodosPagamento = {
+        dinheiro: "dinheiro",
+        pix: "Pix",
+        credito: "cartão de crédito",
+        debito: "cartão de débito",
+        transferencia: "transferência",
+        outro: "outro método"
+    };
     const selecaoAnterior = selecaoEstadia.value;
-    selecaoEstadia.innerHTML = '<option value="">Selecione uma estadia com saldo pendente</option>';
+    selecaoEstadia.innerHTML = '<option value="">Selecione uma estadia com saldo em aberto</option>';
 
     estadiasPendentesPagamento.forEach((estadia) => {
         const conta = calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos);
+        const houveRecusa = pagamentos.some((pagamento) =>
+            Number(pagamento.estadia_id) === Number(estadia.id)
+            && pagamento.status === "recusado"
+        );
         const option = document.createElement("option");
         option.value = String(estadia.id);
-        option.textContent = `${estadia.codigo} · ${nomesClientes.get(Number(estadia.cliente_id)) || `Cliente #${estadia.cliente_id}`} · Em aberto ${formatarMoeda(conta.saldo)}`;
+        option.textContent = `${estadia.codigo} · ${nomesClientes.get(Number(estadia.cliente_id)) || `Cliente #${estadia.cliente_id}`} · Saldo ${formatarMoeda(conta.saldo)}${houveRecusa ? " · tentativa anterior recusada — nova tentativa" : ""}`;
         selecaoEstadia.append(option);
     });
     if (!estadiasPendentesPagamento.length) {
-        selecaoEstadia.options[0].textContent = "Nenhuma estadia com saldo pendente";
-        resumoElemento.textContent = "Não há estadias com saldo pendente para registrar pagamentos.";
+        selecaoEstadia.options[0].textContent = "Nenhuma estadia disponível para novo lançamento";
+        resumoElemento.textContent = "Não há estadias com saldo em aberto para registrar pagamentos.";
         if (botaoRegistrar) botaoRegistrar.disabled = true;
     } else if (botaoRegistrar) {
         botaoRegistrar.disabled = false;
@@ -2766,14 +2938,8 @@ function atualizarFormularioPagamento() {
         const estadia = estadiasPendentesPagamento.find((registro) => String(registro.id) === selecaoEstadia.value);
         if (!estadia) {
             resumoElemento.textContent = estadiasPendentesPagamento.length
-                ? "Selecione uma estadia para consultar o total, os valores já pagos e o saldo em aberto."
-                : "Não há estadias com saldo pendente para registrar pagamentos.";
-            if (previewDesconto) previewDesconto.textContent = "";
-            if (previewDesconto) previewDesconto.hidden = true;
-            if (previewTaxa) {
-                previewTaxa.textContent = "";
-                previewTaxa.hidden = true;
-            }
+                ? "Selecione uma estadia para consultar o saldo e o total a cobrar."
+                : "Não há estadias com saldo em aberto para registrar pagamentos.";
             campoValor.value = "";
             return;
         }
@@ -2794,7 +2960,6 @@ function atualizarFormularioPagamento() {
             : 0;
         const totalParaQuitacao = Math.round((valorParaQuitacao + taxaQuitacaoRepassada) * 100) / 100;
         if (atualizarValor) campoValor.value = totalParaQuitacao > 0 ? totalParaQuitacao.toFixed(2) : "";
-        const aguardandoAprovacao = situacaoPagamento?.value !== "aprovado";
         const totalAtual = Math.round((Number(campoValor.value) || 0) * 100) / 100;
         const valoresAtuais = totalAtual > 0
             ? calcularValorBaseComTaxa(totalAtual, taxaQuitacao)
@@ -2814,9 +2979,38 @@ function atualizarFormularioPagamento() {
             * (1 + Number(estadia.percentual_taxa_aplicado || 0) / 100)
             * 100
         ) / 100;
-        const hospedagemOriginal = Math.round(
-            (conta.hospedagem + promocao) * 100
-        ) / 100;
+        const consumosEstadia = consumos.filter((item) =>
+            Number(item.estadia_id) === Number(estadia.id)
+        );
+        const totalConsumoDetalhado = conta.consumo;
+        const linhasConsumo = consumosEstadia.map((item) => {
+            const quantidade = Number(item.quantidade || 0);
+            const subtotal = Number(item.subtotal || 0);
+            const percentualTaxa = Number(item.percentual_taxa_aplicado || 0);
+            const taxaConsumo = Math.round(subtotal * percentualTaxa) / 100;
+            const nomeProduto = nomesProdutos.get(Number(item.frigobar_id))
+                || `Produto #${item.frigobar_id}`;
+            return `<div class="payment-summary-item">
+                <div class="room-booking-summary-row">
+                    <span>${quantidade} × ${escaparHTML(nomeProduto)} <small>(${formatarMoeda(item.preco_unitario)} cada)</small></span>
+                    <strong>${formatarMoeda(subtotal)}</strong>
+                </div>
+                ${percentualTaxa > 0 ? `<div class="room-booking-summary-row payment-summary-detail"><span>Taxa de serviço do consumo · ${percentualTaxa}%</span><strong>${formatarMoeda(taxaConsumo)}</strong></div>` : ""}
+            </div>`;
+        }).join("");
+        const descontosAnteriores = pagamentos
+            .filter((pagamento) =>
+                Number(pagamento.estadia_id) === Number(estadia.id)
+                && pagamento.status === "aprovado"
+                && Number(pagamento.desconto_aplicado || 0) > 0
+            )
+            .map((pagamento) => {
+                const metodoAnterior = metodosPagamento[pagamento.metodo] || pagamento.metodo;
+                const dataPagamento = String(pagamento.pago_em || pagamento.criado_em || "")
+                    .replace("T", " ")
+                    .slice(0, 16);
+                return `<div class="room-booking-summary-row payment-summary-discount"><span>Desconto à vista anterior · ${escaparHTML(metodoAnterior)}${dataPagamento ? ` · ${escaparHTML(dataPagamento)}` : ""}</span><strong>− ${formatarMoeda(pagamento.desconto_aplicado)}</strong></div>`;
+            }).join("");
         const taxaOperacional = metodo
             ? calcularTaxaOperacionalPreview(
                 metodo,
@@ -2827,45 +3021,41 @@ function atualizarFormularioPagamento() {
         const prazoDetalhe = metodo === "credito" && campoPrazo?.value
             ? `, referência de recebimento em ${campoPrazo.value} dias`
             : "";
+        const descontoExibivel = descontoVista > 0
+            && Math.round(valorAtual * 100) === Math.round(valorParaQuitacao * 100);
+        const totalExibido = totalAtual || totalParaQuitacao;
+        const mostrarSaldo = taxaQuitacaoRepassada > 0
+            || Math.round(totalExibido * 100) !== Math.round(totalParaQuitacao * 100);
+        const metodoNome = metodosPagamento[metodo] || metodo;
+        const configuracaoDesconto = Sahara.dadosPainel.configuracaoComercial?.comercial || {};
+        const regraDesconto = configuracaoDesconto.desconto_vista_tipo === "percentual"
+            ? `${Number(configuracaoDesconto.desconto_vista_valor || 0)}% do saldo em aberto`
+            : `valor fixo de ${formatarMoeda(configuracaoDesconto.desconto_vista_valor || 0)}`;
+        const taxaRepassadaPrevista = taxaQuitacao?.ativa && taxaQuitacao.repassarConfigurado
+            ? taxaQuitacao.valor
+            : 0;
         const saldoAposPagamento = situacaoPagamento?.value === "aprovado"
             ? Math.max(0, Math.round(
                 (conta.saldo - valorAtual - (descontoAplicavel ? descontoVista : 0)) * 100
             ) / 100)
             : conta.saldo;
-        const condicoesDesconto = String(
-            Sahara.dadosPainel.configuracaoComercial?.comercial?.condicoes || ""
-        ).trim();
         resumoElemento.innerHTML = `
-            ${promocao > 0 ? `<div class="room-booking-summary-row"><span>Hospedagem antes da promoção</span><strong>${formatarMoeda(hospedagemOriginal)}</strong></div><div class="room-booking-summary-row"><span>Desconto promocional da suíte</span><strong>− ${formatarMoeda(promocao)}</strong></div>` : ""}
-            <div class="room-booking-summary-row"><span>Hospedagem após promoção</span><strong>${formatarMoeda(conta.hospedagem)}</strong></div>
-            <div class="room-booking-summary-row"><span>Consumo</span><strong>${formatarMoeda(conta.consumo)}</strong></div>
-            <div class="room-booking-summary-row"><span>Total da estadia</span><strong>${formatarMoeda(conta.total)}</strong></div>
-            <div class="room-booking-summary-row"><span>Pagamentos confirmados</span><strong>${formatarMoeda(conta.pago)}</strong></div>
-            ${conta.desconto ? `<div class="room-booking-summary-row"><span>Descontos já aplicados</span><strong>− ${formatarMoeda(conta.desconto)}</strong></div>` : ""}
-            <div class="room-booking-summary-row"><span>Saldo antes deste lançamento</span><strong>${formatarMoeda(conta.saldo)}</strong></div>
-            ${descontoVista > 0 ? `<div class="room-booking-summary-row"><span>Desconto à vista ${descontoAplicavel ? "aplicado" : "previsto para quitação"}</span><strong>− ${formatarMoeda(descontoVista)}</strong></div>` : ""}
-            <div class="room-booking-summary-row"><span>Valor da estadia para quitar</span><strong>${formatarMoeda(valorParaQuitacao)}</strong></div>
-            ${taxaOperacional ? `<div class="room-booking-summary-row payment-operational-fee"><span>${taxaOperacional.ativa ? "Custo operacional estimado" : "Taxa de referência (inativa)"} · ${taxaOperacional.percentual}% + ${formatarMoeda(taxaOperacional.fixa)}${prazoDetalhe}</span><strong>${formatarMoeda(taxaOperacional.valor)}</strong></div>` : ""}
-            ${taxaAtualRepassada > 0 ? `<div class="room-booking-summary-row"><span>Taxa do cartão repassada</span><strong>${formatarMoeda(taxaAtualRepassada)}</strong></div>` : ""}
-            <div class="room-booking-summary-row"><span>Total cobrado do cliente</span><strong>${formatarMoeda(totalAtual || totalParaQuitacao)}</strong></div>
-            <div class="room-booking-summary-row room-booking-total"><span>${situacaoPagamento?.value === "aprovado" ? "Saldo após aprovação" : "Saldo atual (lançamento não aprovado)"}</span><strong>${formatarMoeda(saldoAposPagamento)}</strong></div>
+            <div class="payment-summary-section">
+                <strong class="payment-summary-heading">O que está sendo cobrado</strong>
+                <div class="room-booking-summary-row"><span>Hospedagem${promocao > 0 ? " (promoção já aplicada)" : ""}, com taxa de serviço</span><strong>${formatarMoeda(conta.hospedagem)}</strong></div>
+                ${promocao > 0 ? `<div class="room-booking-summary-row payment-summary-discount"><span>Desconto promocional da suíte</span><strong>− ${formatarMoeda(promocao)}</strong></div>` : ""}
+                ${consumosEstadia.length
+                    ? `<div class="payment-summary-consumption"><strong>Consumo registrado</strong>${linhasConsumo}<div class="room-booking-summary-row payment-summary-subtotal"><span>Total dos produtos e taxas de consumo</span><strong>${formatarMoeda(totalConsumoDetalhado)}</strong></div></div>`
+                    : '<div class="room-booking-summary-row"><span>Consumo</span><strong>Sem produtos lançados</strong></div>'}
+            </div>
+            ${conta.pago > 0 ? `<div class="room-booking-summary-row"><span>Pagamentos já aprovados</span><strong>${formatarMoeda(conta.pago)}</strong></div>` : ""}
+            ${descontosAnteriores}
+            ${descontoExibivel ? `<div class="room-booking-summary-row payment-summary-discount"><span>Desconto à vista ${escaparHTML(metodoNome)} · ${escaparHTML(regraDesconto)} · ${descontoAplicavel ? "aplicado" : "previsto após aprovação"}</span><strong>− ${formatarMoeda(descontoVista)}</strong></div>` : ""}
+            ${mostrarSaldo ? `<div class="room-booking-summary-row"><span>Saldo a quitar${descontoExibivel ? " após o desconto" : ""}</span><strong>${formatarMoeda(valorParaQuitacao)}</strong></div>` : ""}
+            ${taxaOperacional?.ativa && taxaOperacional.repassarConfigurado ? `<div class="room-booking-summary-row payment-operational-fee"><span>Taxa de pagamento repassada · ${escaparHTML(metodoNome)} · ${taxaOperacional.percentual}% + ${formatarMoeda(taxaOperacional.fixa)}${prazoDetalhe}</span><strong>${formatarMoeda(taxaAtualRepassada || taxaRepassadaPrevista)}</strong></div>` : ""}
+            <div class="room-booking-summary-row room-booking-total"><span>Valor deste lançamento</span><strong>${formatarMoeda(totalExibido)}</strong></div>
+            ${situacaoPagamento?.value === "aprovado" && saldoAposPagamento > 0 ? `<div class="room-booking-summary-row"><span>Saldo após este lançamento</span><strong>${formatarMoeda(saldoAposPagamento)}</strong></div>` : ""}
         `;
-        if (previewDesconto) {
-            previewDesconto.textContent = descontoVista > 0
-                ? `Desconto à vista de ${formatarMoeda(descontoVista)} ao quitar o saldo. Valor da estadia: ${formatarMoeda(valorParaQuitacao)}; total com taxas configuradas: ${formatarMoeda(totalParaQuitacao)}.${aguardandoAprovacao ? " Será efetivado após a aprovação do recebimento." : ""} Pagamentos parciais não recebem este desconto.${condicoesDesconto ? ` Condições: ${condicoesDesconto}` : ""}`
-                : "Sem desconto à vista para este método ou estadia.";
-            previewDesconto.hidden = !metodo;
-        }
-        if (previewTaxa) {
-            previewTaxa.textContent = taxaOperacional
-                ? `${taxaOperacional.ativa
-                    ? `Custo operacional estimado: ${formatarMoeda(taxaOperacional.valor)}.`
-                    : `Referência não ativa: estimativa de ${formatarMoeda(taxaOperacional.valor)}.`}${taxaOperacional.ativa && taxaOperacional.repassarConfigurado
-                    ? ` Será somada uma única vez ao total cobrado do cliente (${formatarMoeda(taxaAtualRepassada || taxaQuitacaoRepassada)}).`
-                    : " Não será somada ao total do cliente; o custo fica absorvido pelo estabelecimento."}${taxaOperacional.condicoes ? ` Condições: ${taxaOperacional.condicoes}` : ""}`
-                : "Não há taxa de referência cadastrada para este método.";
-            previewTaxa.hidden = !metodo;
-        }
     };
 
     atualizarOpcoesPrazoPagamento();
@@ -2913,7 +3103,7 @@ function desenharListaEstadias(estadias, usuarios, clientes, quartos) {
             (!dataFim?.value || String(e.entrada_prevista || "").slice(0, 10) <= dataFim.value) &&
             (!texto || `${e.codigo} ${nomesCliente.get(Number(e.cliente_id)) || e.cliente_id}`.toLowerCase().includes(texto))
         );
-        const colunas = tbody.id === "staysTable" ? 8 : 6;
+        const colunas = tbody.id === "staysTable" ? 9 : 6;
         desenharTabela(tbody, lista.map((e) => {
             const quarto = quartosAtuais.get(Number(e.quarto_id));
             const cliente = nomesCliente.get(Number(e.cliente_id)) || `#${e.cliente_id}`;
@@ -2956,6 +3146,7 @@ function desenharListaEstadias(estadias, usuarios, clientes, quartos) {
                 escaparHTML(e.saida_prevista || ""),
                 formatarMoeda(e.valor_total_previsto),
                 escaparHTML(statusEstadia),
+                escaparHTML(String(e.observacoes || "").trim() || "Sem observações"),
                 acao
             ]);
         }), colunas, "Nenhuma estadia cadastrada.");
@@ -3004,52 +3195,73 @@ function desenharListaPagamentos(pagamentos, estadias) {
     const atualizar = () => {
         const cliente = tbody.id === "clientPaymentsTable";
         const termo = pesquisa?.value.trim().toLowerCase() || "";
+        const estadiasAtuais = Sahara.dadosPainel.estadias || estadias;
+        const nomesUsuario = new Map((Sahara.dadosPainel.usuarios || []).map((usuario) => [
+            Number(usuario.id),
+            usuario.nome
+        ]));
+        const nomesCliente = new Map((Sahara.dadosPainel.clientes || []).map((registro) => [
+            Number(registro.id),
+            nomesUsuario.get(Number(registro.usuario_id)) || `Cliente #${registro.id}`
+        ]));
+        const quartosPorId = new Map((Sahara.dadosPainel.quartos || []).map((quarto) => [
+            Number(quarto.id),
+            quarto
+        ]));
+        const estadiaPorId = new Map(estadiasAtuais.map((estadia) => [
+            Number(estadia.id),
+            estadia
+        ]));
         const lista = (Sahara.dadosPainel.pagamentos || pagamentos).filter((p) => {
             const data = String(p.pago_em || p.criado_em || "").slice(0, 10);
-            const referencia = `${p.codigo_transacao || ""} ${(Sahara.dadosPainel.estadias || estadias).find((e) => Number(e.id) === Number(p.estadia_id))?.codigo || ""}`.toLowerCase();
+            const estadia = estadiaPorId.get(Number(p.estadia_id));
+            const quarto = quartosPorId.get(Number(estadia?.quarto_id));
+            const referencia = [
+                p.codigo_transacao,
+                estadia?.codigo,
+                nomesCliente.get(Number(estadia?.cliente_id)),
+                quarto?.nome,
+                quarto?.numero
+            ].join(" ").toLowerCase();
             return (!status?.value || p.status === status.value) &&
                 (!metodo?.value || p.metodo === metodo.value) &&
                 (!termo || referencia.includes(termo)) &&
                 (!dataInicio?.value || data >= dataInicio.value) &&
                 (!dataFim?.value || data <= dataFim.value);
         });
-        const estadiaPorId = new Map(
-            (Sahara.dadosPainel.estadias || estadias)
-                .map((estadia) => [Number(estadia.id), estadia])
-        );
+        const rotulosMetodo = {
+            dinheiro: "Dinheiro",
+            pix: "Pix",
+            credito: "Cartão de crédito",
+            debito: "Cartão de débito",
+            transferencia: "Transferência",
+            outro: "Outro"
+        };
         const rotulosPagamento = {
             pendente: "Pendente",
-            aprovado: "Pago/confirmado",
+            aprovado: "Confirmado",
             recusado: "Recusado",
             estornado: "Estornado",
             cancelado: "Cancelado"
         };
         const linhas = lista.map((p) => {
             const estadia = estadiaPorId.get(Number(p.estadia_id));
+            const quarto = quartosPorId.get(Number(estadia?.quarto_id));
             const situacao = rotulosPagamento[p.status] || p.status;
             const valorCliente = Number(p.valor_cobrado_cliente || p.valor);
-            const detalhesValor = [
-                Number(p.taxa_repassada_cliente_aplicada) === 1 && Number(p.taxa_operacional_aplicada) > 0
-                    ? `Inclui taxa: ${formatarMoeda(p.taxa_operacional_aplicada)}`
-                    : "",
-                Number(p.desconto_aplicado) > 0
-                    ? `Desconto à vista: ${formatarMoeda(p.desconto_aplicado)}`
-                    : ""
-            ].filter(Boolean);
-            const valorRegistrado = `${formatarMoeda(valorCliente)}${detalhesValor.length
-                ? `<small class="payment-history-discount">${detalhesValor.map(escaparHTML).join(" · ")}</small>`
-                : ""}`;
-            const custoOperacional = Number(p.taxa_operacional_aplicada) > 0
-                ? `${formatarMoeda(p.taxa_operacional_aplicada)}<small class="payment-history-discount">${Number(p.percentual_taxa_operacional_aplicada)}% + ${formatarMoeda(p.tarifa_fixa_operacional_aplicada)} · ${Number(p.taxa_repassada_cliente_aplicada) === 1 ? "repassado" : "absorvido"}</small>`
-                : "—";
+            const detalheDesconto = Number(p.desconto_aplicado) > 0
+                ? `<small class="payment-history-discount">Desconto: ${formatarMoeda(p.desconto_aplicado)}</small>`
+                : "";
+            const valorRegistrado = `${formatarMoeda(valorCliente)}${detalheDesconto}`;
+            const referenciaEstadia = `${estadia?.codigo || `#${p.estadia_id}`}${quarto ? ` · ${quarto.nome} (${quarto.numero})` : ""}`;
             return cliente
-                ? criarLinhaTabela([escaparHTML(estadia?.codigo || `#${p.estadia_id}`), escaparHTML(p.pago_em || p.criado_em || ""), escaparHTML(p.metodo), valorRegistrado, escaparHTML(situacao)])
+                ? criarLinhaTabela([escaparHTML(estadia?.codigo || `#${p.estadia_id}`), escaparHTML(p.pago_em || p.criado_em || ""), escaparHTML(rotulosMetodo[p.metodo] || p.metodo), valorRegistrado, escaparHTML(situacao)])
                 : criarLinhaTabela([
                     String(p.id),
-                    escaparHTML(estadia?.codigo || `#${p.estadia_id}`),
+                    escaparHTML(nomesCliente.get(Number(estadia?.cliente_id)) || `Cliente #${estadia?.cliente_id || "—"}`),
+                    escaparHTML(referenciaEstadia),
                     valorRegistrado,
-                    custoOperacional,
-                    escaparHTML(p.metodo),
+                    escaparHTML(rotulosMetodo[p.metodo] || p.metodo),
                     escaparHTML(p.pago_em || p.criado_em || ""),
                     escaparHTML(situacao),
                     p.status === "pendente"
@@ -3142,9 +3354,27 @@ function preencherIndicadores(quartos, estadias, pagamentos, consumos) {
         if (elemento) elemento.textContent = String(valor);
     });
 
-    ["aprovado", "pendente", "recusado", "estornado"].forEach((status) => {
-        const elemento = selecionar(`[data-payment-stat="${status}s"]`);
-        if (elemento) elemento.textContent = String(pagamentos.filter((p) => p.status === status).length);
+    const pagamentosConfirmados = pagamentos.filter((pagamento) => pagamento.status === "aprovado");
+    const recebidosCentavos = pagamentosConfirmados.reduce((total, pagamento) =>
+        total + Math.round(Number(pagamento.valor || 0) * 100), 0);
+    const recusadosCentavos = pagamentos
+        .filter((pagamento) => pagamento.status === "recusado")
+        .reduce((total, pagamento) =>
+            total + Math.round(Number(pagamento.valor_cobrado_cliente || pagamento.valor || 0) * 100), 0);
+    const saldoPendenteCentavos = estadias
+        .filter((estadia) => estadia.status !== "cancelada")
+        .reduce((total, estadia) =>
+            total + Math.round(calcularResumoFinanceiroEstadia(estadia, consumos, pagamentos).saldo * 100), 0);
+    const resumoFinanceiro = Sahara.dadosPainel.resumoFinanceiro || {};
+    const indicadoresFinanceiros = {
+        received: formatarMoeda(resumoFinanceiro.recebido ?? recebidosCentavos / 100),
+        pending: formatarMoeda(resumoFinanceiro.pendente ?? saldoPendenteCentavos / 100),
+        refused: formatarMoeda(resumoFinanceiro.recusado ?? recusadosCentavos / 100),
+        confirmed: String(resumoFinanceiro.confirmados ?? pagamentosConfirmados.length)
+    };
+    Object.entries(indicadoresFinanceiros).forEach(([chave, valor]) => {
+        const elemento = selecionar(`[data-payment-finance="${chave}"]`);
+        if (elemento) elemento.textContent = valor;
     });
     ["aprovado", "pendente"].forEach((status) => {
         const elemento = selecionar(`[data-client-payment="${status}"]`);
@@ -3304,9 +3534,8 @@ function desenharPromocoesAdmin(promocoes) {
 
 async function carregarConfiguracoesAdmin() {
     const formularioPromocao = selecionar("#promotionForm");
-    const formularioInfo = selecionar("#motelInfoForm");
     const formularioComercial = selecionar("#commercialSettingsForm");
-    if (!formularioPromocao && !formularioInfo && !formularioComercial) return;
+    if (!formularioPromocao && !formularioComercial) return;
 
     if (formularioPromocao && formularioPromocao.dataset.handlers !== "true") {
         formularioPromocao.dataset.handlers = "true";
@@ -3374,24 +3603,6 @@ async function carregarConfiguracoesAdmin() {
                 await carregarDadosPainel();
             } catch (erro) {
                 mostrarMensagem(selecionar("#promotionListMessage"), erro.message);
-            }
-        });
-    }
-
-    if (formularioInfo && formularioInfo.dataset.handlers !== "true") {
-        formularioInfo.dataset.handlers = "true";
-        formularioInfo.addEventListener("submit", async (evento) => {
-            evento.preventDefault();
-            const dados = Object.fromEntries(new FormData(formularioInfo).entries());
-            dados.horario_confirmado = selecionar("#infoHoursConfirmed").checked ? 1 : 0;
-            try {
-                const resposta = await solicitarConfiguracao("informacoes", {
-                    method: "PUT",
-                    body: JSON.stringify(dados)
-                });
-                mostrarMensagem(selecionar("#motelInfoMessage"), resposta.mensagem, true);
-            } catch (erro) {
-                mostrarMensagem(selecionar("#motelInfoMessage"), erro.message);
             }
         });
     }
@@ -3466,20 +3677,6 @@ async function carregarConfiguracoesAdmin() {
             }
             desenharPromocoesAdmin(promocoes.dados || []);
         }
-        if (formularioInfo && formularioInfo.dataset.loaded !== "true") {
-            const resultado = await solicitarConfiguracao("informacoes");
-            const dados = resultado.dados || {};
-            [...formularioInfo.elements].forEach((campo) => {
-                if (campo.name && Object.prototype.hasOwnProperty.call(dados, campo.name)) {
-                    if (campo.type === "checkbox") {
-                        campo.checked = Number(dados[campo.name]) === 1;
-                    } else {
-                        campo.value = dados[campo.name] ?? "";
-                    }
-                }
-            });
-            formularioInfo.dataset.loaded = "true";
-        }
         if (formularioComercial && formularioComercial.dataset.loaded !== "true") {
             const resultado = await solicitarConfiguracao("comercial");
             Sahara.dadosPainel.configuracaoComercial = resultado.dados;
@@ -3507,7 +3704,7 @@ async function carregarConfiguracoesAdmin() {
             formularioComercial.dataset.loaded = "true";
         }
     } catch (erro) {
-        const destino = selecionar("#promotionListMessage, #motelInfoMessage, #commercialSettingsMessage");
+        const destino = selecionar("#promotionListMessage, #commercialSettingsMessage");
         if (destino) mostrarMensagem(destino, erro.message);
         else notificar(erro.message, "aviso");
     }
@@ -3648,7 +3845,7 @@ async function inicializarPaginaSobre() {
     } catch (erro) {
         selecionar("#publicInfoLoading").hidden = true;
         const destino = selecionar("#publicInfoError");
-        destino.textContent = `${erro.message} A equipe pode cadastrar os dados na área administrativa.`;
+        destino.textContent = `${erro.message} Tente novamente mais tarde.`;
         destino.hidden = false;
     }
 }
@@ -3685,6 +3882,7 @@ function inicializarSahara() {
 
     inicializarContadorCaracteres();
     inicializarPreviewImagem();
+    inicializarPreviewFotosQuarto();
     inicializarForcaSenha();
     inicializarStatusVisual();
 
