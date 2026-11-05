@@ -24,7 +24,6 @@
             <a class="nav-link" href="frigobar.html"><span>◇</span> Consumo</a>
             <a class="nav-link" href="estadia.html"><span>▤</span> Estadias</a>
             <a class="nav-link" href="pagamentos.html"><span>＄</span> Pagamentos</a>
-            <a class="nav-link" href="informacoes.html"><span>⌖</span> Informações do Motel</a>
         </nav>
         <div class="sidebar-bottom">
             <div class="sidebar-profile"><div class="avatar">A</div><div><strong>Administrador</strong><span>Gestão Sahara</span></div></div>
@@ -117,8 +116,15 @@
 
                     <div class="form-group form-grid-full">
                         <label for="roomPhotos">Fotos da acomodação</label>
-                        <input class="form-control" id="roomPhotos" name="fotos[]" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-                        <span class="field-hint">JPG, PNG ou WEBP. Selecione várias fotos de uma vez ou abra o seletor novamente para adicioná-las à seleção. Até 10 fotos, 5 MB cada e 20 MB no total.</span>
+                        <div class="room-photo-picker">
+                            <input class="form-control room-photo-input" id="roomPhotos" name="fotos[]" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="roomPhotosHint roomPhotoSelectionStatus" multiple>
+                            <button type="button" class="btn btn-secondary" data-room-photo-picker aria-controls="roomPhotos">
+                                <span aria-hidden="true">▧</span>
+                                Escolher fotos
+                            </button>
+                            <span id="roomPhotoSelectionStatus" class="room-photo-selection-status" role="status" aria-live="polite">Nenhuma foto selecionada.</span>
+                        </div>
+                        <span id="roomPhotosHint" class="field-hint">JPG, PNG ou WEBP. Escolha até 10 fotos, com no máximo 5 MB cada e 20 MB no total. Você pode adicionar mais fotos antes de salvar.</span>
                         <div id="roomPhotoPreviews" class="room-photo-previews" aria-live="polite"></div>
                     </div>
 

@@ -200,7 +200,7 @@ function inicializarMenu() {
             return;
         }
 
-        const menuAberto = selecionar(".is-open");
+        const menuAberto = selecionar(".is-open:not(.sidebar)");
 
         if (
             menuAberto &&
@@ -1241,30 +1241,51 @@ function inicializarSidebar() {
     const botoes = selecionarTodos("[data-sidebar-toggle]");
 
     botoes.forEach((botao) => {
+        const seletor = botao.getAttribute("data-sidebar-toggle");
+        const sidebar = seletor
+            ? selecionar(seletor)
+            : selecionar(".sidebar");
+
+        if (!sidebar) {
+            return;
+        }
+
+        const fecharSidebar = () => {
+            sidebar.classList.remove("is-open");
+            botao.setAttribute("aria-expanded", "false");
+            document.body.classList.remove("sidebar-aberta");
+        };
+
+        botao.setAttribute("aria-expanded", "false");
+
         botao.addEventListener("click", () => {
-            const seletor = botao.getAttribute(
-                "data-sidebar-toggle"
-            );
+            const aberta = !sidebar.classList.contains("is-open");
+            sidebar.classList.toggle("is-open", aberta);
+            botao.setAttribute("aria-expanded", String(aberta));
+            document.body.classList.toggle("sidebar-aberta", aberta);
+        });
 
-            const sidebar = seletor
-                ? selecionar(seletor)
-                : selecionar(".sidebar");
-
-            if (!sidebar) {
-                return;
+        document.addEventListener("click", (evento) => {
+            if (
+                document.body.classList.contains("sidebar-aberta")
+                && !sidebar.contains(evento.target)
+                && !botao.contains(evento.target)
+            ) {
+                fecharSidebar();
             }
+        });
 
-            const aberta = sidebar.classList.toggle("is-open");
+        document.addEventListener("keydown", (evento) => {
+            if (evento.key === "Escape" && document.body.classList.contains("sidebar-aberta")) {
+                fecharSidebar();
+                botao.focus();
+            }
+        });
 
-            botao.setAttribute(
-                "aria-expanded",
-                String(aberta)
-            );
-
-            document.body.classList.toggle(
-                "sidebar-aberta",
-                aberta
-            );
+        window.addEventListener("resize", () => {
+            if (window.innerWidth > 760) {
+                fecharSidebar();
+            }
         });
     });
 }
@@ -1407,13 +1428,25 @@ function inicializarPreviewFotosQuarto() {
     const previews = selecionar("#roomPhotoPreviews");
     if (!campo || !previews || campo.dataset.previewHandler === "true") return;
     campo.dataset.previewHandler = "true";
+    const botaoEscolher = selecionar("[data-room-photo-picker]");
+    const statusSelecao = selecionar("#roomPhotoSelectionStatus");
     let urlsTemporarias = [];
     let arquivosSelecionados = [];
+
+    botaoEscolher?.addEventListener("click", () => campo.click());
 
     const definirArquivos = (arquivos) => {
         const selecao = new DataTransfer();
         arquivos.forEach((arquivo) => selecao.items.add(arquivo));
         campo.files = selecao.files;
+    };
+
+    const atualizarStatusSelecao = () => {
+        if (!statusSelecao) return;
+        const quantidade = arquivosSelecionados.length;
+        statusSelecao.textContent = quantidade === 0
+            ? "Nenhuma foto selecionada."
+            : `${quantidade} ${quantidade === 1 ? "foto selecionada" : "fotos selecionadas"}.`;
     };
 
     const desenharPreviews = () => {
@@ -1429,6 +1462,7 @@ function inicializarPreviewFotosQuarto() {
                 <button type="button" class="btn btn-secondary btn-small" data-remove-room-photo="${indice}" aria-label="Remover ${escaparHTML(arquivo.name)}">Remover</button>
             </figure>`;
         }).join("");
+        atualizarStatusSelecao();
     };
 
     campo.addEventListener("change", () => {
@@ -1451,6 +1485,11 @@ function inicializarPreviewFotosQuarto() {
         arquivosSelecionados = arquivos;
         definirArquivos(arquivosSelecionados);
         desenharPreviews();
+        const mensagem = selecionar("#roomMessage");
+        if (mensagem) {
+            mensagem.hidden = true;
+            mensagem.textContent = "";
+        }
     });
 
     previews.addEventListener("click", (evento) => {
@@ -1465,6 +1504,7 @@ function inicializarPreviewFotosQuarto() {
         arquivosSelecionados = [];
         desenharPreviews();
     }, 0));
+    atualizarStatusSelecao();
 }
 
 /* ============================================================
@@ -3733,6 +3773,21 @@ function criarLinkExterno(rotulo, url, classe = "btn btn-secondary") {
     }
 }
 
+function criarIconeContato(caminho, viewBox = "0 0 24 24") {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", viewBox);
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", caminho);
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.7");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    return svg;
+}
+
 async function inicializarPaginaSobre() {
     const area = selecionar("#publicInfoContent");
     if (!area) return;
@@ -3751,85 +3806,113 @@ async function inicializarPaginaSobre() {
         selecionar("#publicInfoAddress").textContent =
             enderecoCompleto || "O endereço ainda não foi informado pelo estabelecimento.";
         selecionar("#publicInfoReference").textContent = dados.referencia ? `Referência: ${dados.referencia}` : "";
-        const cardHorario = selecionar("#publicHoursCard");
-        const horarioConfirmado = Number(dados.horario_confirmado) === 1
-            && String(dados.horario_atendimento || "").trim() !== "";
-        if (horarioConfirmado) {
-            const horario = String(dados.horario_atendimento).trim();
-            const partesHorario = horario.split(/\s*(?:—|–|\|)\s*/, 2);
-            const diasHorario = selecionar("#publicInfoHoursDays");
-            if (partesHorario.length === 2) {
-                diasHorario.hidden = false;
-                diasHorario.textContent = partesHorario[0];
-                selecionar("#publicInfoHours").textContent = partesHorario[1];
-            } else {
-                diasHorario.hidden = true;
-                selecionar("#publicInfoHours").textContent = horario;
-            }
-            cardHorario.hidden = false;
-        }
         const mapaAcoes = selecionar("#publicMapActions");
+        mapaAcoes.replaceChildren();
         const destinoRota = [dados.endereco, dados.bairro, dados.cidade, dados.estado]
             .filter(Boolean)
             .join(", ");
-        const destinoMapa = dados.google_maps_url || (destinoRota
-            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinoRota)}`
-            : "");
-        if (destinoMapa) {
-            const link = criarLinkExterno(
-                dados.google_maps_url ? "Abrir localização no Google Maps" : "Ver localização",
-                destinoMapa
-            );
-            if (link) {
-                mapaAcoes.append(link);
-            }
-        }
-        if (destinoRota) {
-            const rota = criarLinkExterno(
-                "Obter rotas",
-                `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinoRota)}`
-            );
-            if (rota) mapaAcoes.append(rota);
-        }
-        if (!mapaAcoes.childElementCount) {
-            mapaAcoes.textContent = "Mapa e rotas ainda não foram cadastrados.";
-        }
+        const destinoNavegacao = destinoRota || "Motel Sahara";
+        const queryDestino = encodeURIComponent(destinoNavegacao);
+        const mapas = [
+            [
+                "Google Maps",
+                dados.google_maps_url || `https://www.google.com/maps/dir/?api=1&destination=${queryDestino}`,
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Z"/><path fill="#34a853" d="M12 2a7 7 0 0 0-7 7c0 2.2 1.1 4.8 2.5 7.1l4.5-4.5Z"/><path fill="#fbbc04" d="m7.5 16.1 4.5-4.5 4.5 4.5c-1.6 2.6-3.5 4.9-4.5 6-1-1.1-2.9-3.4-4.5-6Z"/><path fill="#ea4335" d="M12 2a7 7 0 0 1 7 7c0 2.2-1.1 4.8-2.5 7.1L12 11.6Z"/><circle cx="12" cy="9" r="2.5" fill="#fff"/></svg>'
+            ],
+            [
+                "Waze",
+                `https://waze.com/ul?q=${queryDestino}&navigate=yes`,
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#33ccff" d="M12 2a9 9 0 0 0-8.8 10.9l-1 4.4 4.5-1A9 9 0 1 0 12 2Z"/><path fill="#fff" d="M9 10a1.2 1.2 0 1 0 0-2.4A1.2 1.2 0 0 0 9 10Zm6 0a1.2 1.2 0 1 0 0-2.4A1.2 1.2 0 0 0 15 10Zm-6 2.3c1.8 1.8 4.2 1.8 6 0l1.2 1.2c-2.5 2.5-5.9 2.5-8.4 0Z"/></svg>'
+            ],
+            [
+                "Uber",
+                `https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${queryDestino}`,
+                '<svg viewBox="0 0 40 24" aria-hidden="true"><text x="1" y="19" fill="currentColor" font-family="Arial,sans-serif" font-size="19" font-weight="700">Uber</text></svg>'
+            ]
+        ];
+        mapas.forEach(([nome, url, icone]) => {
+            const link = criarLinkExterno(nome, url, "btn btn-secondary contact-map-link");
+            if (!link) return;
+            link.setAttribute("aria-label", `Abrir destino no ${nome}`);
+            link.innerHTML = `${icone}<span>${nome}</span>`;
+            mapaAcoes.append(link);
+        });
         if (destinoRota) {
             const frame = selecionar("#publicMapFrame");
-            frame.src = `https://maps.google.com/maps?q=${encodeURIComponent(destinoRota)}&output=embed`;
-            frame.hidden = false;
+            if (frame) {
+                frame.src = `https://maps.google.com/maps?q=${queryDestino}&output=embed`;
+                frame.hidden = false;
+            }
         }
         const contatos = selecionar("#publicContactList");
-        const telefone = String(dados.telefone || "");
+        contatos.replaceChildren();
+        const telefone = "(51) 3471-4080";
         const telefoneDigitos = telefone.replace(/\D/g, "");
+        const criarMetodoContato = (titulo, valor, icone, href, classe = "") => {
+            const item = href ? document.createElement("a") : document.createElement("div");
+            item.className = `contact-method ${classe}`.trim();
+            if (href) {
+                item.href = href;
+                if (href.startsWith("https:")) {
+                    item.target = "_blank";
+                    item.rel = "noopener noreferrer";
+                }
+            }
+            const marca = document.createElement("span");
+            marca.className = "contact-method-icon";
+            marca.append(criarIconeContato(icone));
+            const texto = document.createElement("span");
+            texto.className = "contact-method-copy";
+            const rotulo = document.createElement("strong");
+            rotulo.textContent = titulo;
+            const detalhe = document.createElement("span");
+            detalhe.textContent = valor;
+            texto.append(rotulo, detalhe);
+            item.append(marca, texto);
+            contatos.append(item);
+            return item;
+        };
         if (telefoneDigitos.length >= 8 && telefoneDigitos.length <= 15) {
-            const link = document.createElement("a");
-            link.className = "btn btn-secondary";
-            link.href = `tel:${telefone.replace(/[^\d+]/g, "")}`;
-            link.textContent = `Telefone: ${telefone}`;
-            contatos.append(link);
+            criarMetodoContato(
+                "Telefone",
+                telefone,
+                "M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.2-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.8 2.1Z",
+                `tel:${telefone.replace(/[^\d+]/g, "")}`
+            );
         }
-        const whatsapp = String(dados.whatsapp || "").replace(/\D/g, "");
+        const whatsapp = "555180284080";
+        const whatsappExibicao = "+55 51 8028-4080";
+        const whatsappUrl = `https://wa.me/${whatsapp}?text=${encodeURIComponent("ola")}`;
         if (whatsapp.length >= 10 && whatsapp.length <= 15) {
-            const link = criarLinkExterno("Conversar pelo WhatsApp", `https://wa.me/${whatsapp}`);
-            if (link) contatos.append(link);
+            criarMetodoContato(
+                "WhatsApp",
+                whatsappExibicao,
+                "M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z M8.7 8.3c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4-.1.6.5.9 1.3 1.6 2.2 2.1.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.6.8c.3.1.4.3.3.6-.1.5-.3 1.1-.8 1.5-.5.4-1.1.6-1.8.4-1-.2-2.3-.8-3.6-2-1.1-1-2-2.4-2.2-3.4-.2-.9.1-1.7.7-2.4Z",
+                whatsappUrl
+            );
         }
         if (dados.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) {
-            const link = document.createElement("a");
-            link.className = "btn btn-secondary";
-            link.href = `mailto:${dados.email}`;
-            link.textContent = `E-mail: ${dados.email}`;
-            contatos.append(link);
-        }
-        if (!contatos.childElementCount) {
-            contatos.textContent = "Os dados de contato ainda não foram cadastrados.";
+            criarMetodoContato(
+                "E-mail",
+                dados.email,
+                "M4 5h16v14H4z M4 7l8 6 8-6",
+                `mailto:${dados.email}`
+            );
         }
         const redes = [
-            ["Instagram", dados.instagram_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="1.2" fill="currentColor"/></svg>'],
-            ["Facebook", dados.facebook_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.6 1.6-1.6h1.7V3.8c-.3 0-1.4-.1-2.7-.1-2.7 0-4.5 1.6-4.5 4.7V10H6.7v3h2.9v8h3.9z" fill="currentColor"/></svg>'],
-            ["TikTok", dados.tiktok_url, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3h-3.2v11.2a2.5 2.5 0 1 1-2.5-2.5c.4 0 .8.1 1.1.3V8.7a6 6 0 1 0 4.6 5.8V9a8.6 8.6 0 0 0 5 1.6V7.4a5.4 5.4 0 0 1-5-4.4z" fill="currentColor"/></svg>']
+            [
+                "Instagram",
+                "https://www.instagram.com/motelsahara/",
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="1.2" fill="currentColor"/></svg>'
+            ],
+            [
+                "Facebook",
+                "https://www.facebook.com/MotelSahara",
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.6 1.6-1.6h1.7V3.8c-.3 0-1.4-.1-2.7-.1-2.7 0-4.5 1.6-4.5 4.7V10H6.7v3h2.9v8h3.9z" fill="currentColor"/></svg>'
+            ]
         ];
         const listaRedes = selecionar("#publicSocialLinks");
+        listaRedes.replaceChildren();
         redes.forEach(([nome, url, icone]) => {
             const link = criarLinkExterno(nome, url, "social-icon-link");
             if (link) {
@@ -3839,13 +3922,26 @@ async function inicializarPaginaSobre() {
                 listaRedes.append(link);
             }
         });
+        const linkWhatsappSocial = criarLinkExterno(
+            "WhatsApp",
+            whatsappUrl,
+            "social-icon-link social-icon-link-whatsapp"
+        );
+        if (linkWhatsappSocial) {
+            linkWhatsappSocial.setAttribute("aria-label", "WhatsApp");
+            linkWhatsappSocial.title = "WhatsApp";
+            linkWhatsappSocial.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z M8.7 8.3c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4-.1.6.5.9 1.3 1.6 2.2 2.1.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.6.8c.3.1.4.3.3.6-.1.5-.3 1.1-.8 1.5-.5.4-1.1.6-1.8.4-1-.2-2.3-.8-3.6-2-1.1-1-2-2.4-2.2-3.4-.2-.9.1-1.7.7-2.4Z" fill="currentColor"/></svg>';
+            listaRedes.append(linkWhatsappSocial);
+        }
         selecionar("#publicSocialSection").hidden = listaRedes.childElementCount === 0;
         selecionar("#publicInfoLoading").hidden = true;
         area.hidden = false;
     } catch (erro) {
+        console.error("Motel Sahara: falha ao carregar informações públicas.", erro);
         selecionar("#publicInfoLoading").hidden = true;
         const destino = selecionar("#publicInfoError");
-        destino.textContent = `${erro.message} Tente novamente mais tarde.`;
+        destino.textContent =
+            "Não foi possível carregar os dados oficiais. Os contatos e a localização exibidos são exemplos; atualize-os antes de publicar.";
         destino.hidden = false;
     }
 }
