@@ -124,8 +124,8 @@
                             </button>
                             <span id="roomPhotoSelectionStatus" class="room-photo-selection-status" role="status" aria-live="polite">Nenhuma foto selecionada.</span>
                         </div>
-                        <span id="roomPhotosHint" class="field-hint">JPG, PNG ou WEBP. Escolha até 10 fotos, com no máximo 5 MB cada e 20 MB no total. Você pode adicionar mais fotos antes de salvar.</span>
-                        <div id="roomPhotoPreviews" class="room-photo-previews" aria-live="polite"></div>
+                        <span id="roomPhotosHint" class="field-hint">JPG, PNG ou WEBP. Escolha até 10 fotos, com no máximo 5 MB cada e 20 MB no total. As miniaturas aparecem abaixo; cada foto é enviada individualmente ao salvar.</span>
+                        <div id="roomPhotoPreviews" class="room-photo-previews" role="group" aria-label="Pré-visualização das fotos selecionadas" aria-live="polite"></div>
                     </div>
 
                     <div class="form-group form-grid-full">
@@ -168,9 +168,9 @@
 
             <div class="table-responsive">
                 <table class="data-table">
-                    <thead><tr><th>Número</th><th>Acomodação</th><th>Categoria</th><th>Preço</th><th>Situação</th><th>Ações</th></tr></thead>
+                    <thead><tr><th>Número</th><th>Acomodação</th><th>Fotos</th><th>Categoria</th><th>Preço</th><th>Situação</th><th>Ações</th></tr></thead>
                     <tbody id="roomsTable">
-                        <tr><td colspan="6" class="empty-state">Nenhum quarto carregado. Cadastre uma acomodação ou conecte a listagem ao banco.</td></tr>
+                        <tr><td colspan="7" class="empty-state">Nenhum quarto carregado. Cadastre uma acomodação ou conecte a listagem ao banco.</td></tr>
                     </tbody>
                 </table>
             </div>

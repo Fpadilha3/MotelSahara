@@ -1,5 +1,11 @@
 Options -Indexes
 
+<IfModule mod_php.c>
+    php_value upload_max_filesize 5M
+    php_value post_max_size 24M
+    php_value max_file_uploads 20
+</IfModule>
+
 <FilesMatch "^(config\.php|conexao\.php|resposta\.php|proteger\.php|criar_admin\.php)$">
     Require all denied
 </FilesMatch>

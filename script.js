@@ -1423,6 +1423,8 @@ function inicializarPreviewImagem() {
     });
 }
 
+const selecoesFotosQuarto = new WeakMap();
+
 function inicializarPreviewFotosQuarto() {
     const campo = selecionar("#roomPhotos");
     const previews = selecionar("#roomPhotoPreviews");
@@ -1440,6 +1442,24 @@ function inicializarPreviewFotosQuarto() {
         arquivos.forEach((arquivo) => selecao.items.add(arquivo));
         campo.files = selecao.files;
     };
+
+    const removerFotosEnviadas = (fotosEnviadas) => {
+        const quantidades = new Map();
+        fotosEnviadas.forEach((foto) => {
+            const chave = `${foto.name}\u0000${foto.size}\u0000${foto.lastModified}\u0000${foto.type}`;
+            quantidades.set(chave, (quantidades.get(chave) || 0) + 1);
+        });
+        arquivosSelecionados = arquivosSelecionados.filter((foto) => {
+            const chave = `${foto.name}\u0000${foto.size}\u0000${foto.lastModified}\u0000${foto.type}`;
+            const quantidade = quantidades.get(chave) || 0;
+            if (!quantidade) return true;
+            quantidades.set(chave, quantidade - 1);
+            return false;
+        });
+        definirArquivos(arquivosSelecionados);
+        desenharPreviews();
+    };
+    selecoesFotosQuarto.set(campo, { removerEnviadas: removerFotosEnviadas });
 
     const atualizarStatusSelecao = () => {
         if (!statusSelecao) return;
@@ -2087,24 +2107,35 @@ async function inicializarIntegracaoAPI() {
                 let mensagemSucesso = resposta.mensagem;
                 if (formulario.id === "roomForm" && fotosQuarto.length) {
                     const quartoId = formulario.dataset.recordId || resposta.id;
-                    const formFotos = new FormData();
-                    fotosQuarto.forEach((foto) => formFotos.append("fotos[]", foto));
-                    try {
-                        const respostaFotos = await solicitarAPI(
-                            `../api/upload_quartos.php?quarto_id=${encodeURIComponent(quartoId)}`,
-                            { method: "POST", body: formFotos }
-                        );
-                        mensagemSucesso += ` ${respostaFotos.mensagem}`;
-                    } catch (erroFotos) {
-                        if (!formulario.dataset.recordId && resposta.id) {
-                            formulario.action = `${formulario.dataset.createAction}&id=${encodeURIComponent(resposta.id)}`;
-                            formulario.dataset.requestMethod = "PUT";
-                            formulario.dataset.recordId = String(resposta.id);
-                            const botaoSalvar = formulario.querySelector("button[type='submit']");
-                            if (botaoSalvar) botaoSalvar.textContent = "Atualizar acomodação";
+                    let quantidadeEnviada = 0;
+                    for (const foto of fotosQuarto) {
+                        const formFotos = new FormData();
+                        formFotos.append("fotos[]", foto);
+                        try {
+                            await solicitarAPI(
+                                `../api/upload_quartos.php?quarto_id=${encodeURIComponent(quartoId)}`,
+                                { method: "POST", body: formFotos }
+                            );
+                            quantidadeEnviada++;
+                            selecoesFotosQuarto.get(selecionar("#roomPhotos", formulario))
+                                ?.removerEnviadas([foto]);
+                        } catch (erroFotos) {
+                            if (!formulario.dataset.recordId && resposta.id) {
+                                formulario.action = `${formulario.dataset.createAction}&id=${encodeURIComponent(resposta.id)}`;
+                                formulario.dataset.requestMethod = "PUT";
+                                formulario.dataset.recordId = String(resposta.id);
+                                const botaoSalvar = formulario.querySelector("button[type='submit']");
+                                if (botaoSalvar) botaoSalvar.textContent = "Atualizar acomodação";
+                            }
+                            const detalheParcial = quantidadeEnviada
+                                ? `${quantidadeEnviada} foto(s) foram enviadas. `
+                                : "";
+                            throw new Error(
+                                `${detalheParcial}O envio parou em "${foto.name}". As fotos restantes continuam selecionadas. ${erroFotos.message}`
+                            );
                         }
-                        throw new Error(`A acomodação foi salva, mas as fotos não foram enviadas. ${erroFotos.message}`);
                     }
+                    mensagemSucesso += ` ${quantidadeEnviada} foto(s) salva(s) com sucesso.`;
                 }
                 mostrarMensagem(mensagem, mensagemSucesso, true);
                 formulario.reset();
@@ -2236,6 +2267,21 @@ function renderizarGaleriaQuarto(quarto) {
     </div>`;
 }
 
+function renderizarMiniaturasFotosQuarto(quarto) {
+    const imagens = (Array.isArray(quarto.imagens) ? quarto.imagens : [])
+        .map((caminho) => caminhoImagemQuarto(caminho))
+        .filter(Boolean);
+    if (!imagens.length) {
+        return '<span class="muted-text">Sem fotos</span>';
+    }
+
+    const limiteMiniaturas = 3;
+    return `<div class="room-table-photos" role="group" aria-label="${imagens.length} fotos de ${escaparHTML(quarto.nome)}">
+        ${imagens.slice(0, limiteMiniaturas).map((imagem, indice) => `<img src="${escaparHTML(imagem)}" alt="Foto ${indice + 1} de ${escaparHTML(quarto.nome)}" loading="lazy" decoding="async">`).join("")}
+        ${imagens.length > limiteMiniaturas ? `<span class="room-table-photo-count">+${imagens.length - limiteMiniaturas}</span>` : ""}
+    </div>`;
+}
+
 function desenharListaQuartos(quartos, admin) {
     const adminTable = selecionar("#roomsTable");
     const grid = selecionar("#clientRoomsGrid");
@@ -2255,13 +2301,14 @@ function desenharListaQuartos(quartos, admin) {
         desenharTabela(adminTable, lista.map((q) => criarLinhaTabela([
             escaparHTML(q.numero),
             escaparHTML(q.nome),
+            renderizarMiniaturasFotosQuarto(q),
             escaparHTML(q.categoria),
             formatarMoeda(q.preco_periodo),
             escaparHTML(q.status),
             admin
                 ? `<button type="button" class="btn btn-secondary" data-edit-room="${Number(q.id)}">Editar</button>`
                 : "—"
-        ])), 6, "Nenhum quarto cadastrado.");
+        ])), 7, "Nenhum quarto cadastrado.");
 
         if (grid) {
             grid.innerHTML = lista.length

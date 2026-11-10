@@ -21,6 +21,17 @@ if ($quartoId === false) {
     responderJson(['sucesso' => false, 'mensagem' => 'Informe uma suíte válida.'], 422);
 }
 
+if (
+    (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0
+    && $_POST === []
+    && $_FILES === []
+) {
+    responderJson([
+        'sucesso' => false,
+        'mensagem' => 'O envio ultrapassou o limite de tamanho configurado no servidor. Tente novamente com menos fotos ou arquivos menores.'
+    ], 413);
+}
+
 $arquivos = $_FILES['fotos'] ?? null;
 if (
     !is_array($arquivos)
